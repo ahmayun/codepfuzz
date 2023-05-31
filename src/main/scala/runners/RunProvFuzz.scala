@@ -47,7 +47,7 @@ object RunProvFuzz {
     // Probing and Fuzzing
 //    val probingDataset = ProvFuzzUtils.CreateProbingDatasets(probeProgram, schema)
     val (provInfo, timeStartProbe, timeEndProbe) = ProvFuzzUtils.Probe(probeProgram)
-    val guidance = new ProvFuzzGuidance(inputFiles, schema, provInfo, runs)
+    val guidance = new ProvFuzzGuidance(inputFiles, provInfo, runs)
     val (stats, timeStartFuzz, timeEndFuzz) = NewFuzzer.FuzzMutants(program, program, guidance, outputDir)
 
     // Finalizing
