@@ -4,7 +4,7 @@
 
 # . Decide an output directory for coverage output
 # . Run ScoverageInstrumenter.scala using the assembled jar file
-# . Add scoverage-instrumented class files to jar using 'jar uf target/scala-2.11/ProvFuzz-assembly-1.0.jar target/scala-2.11/examples/fuzzable/<name of instrumented jars>'
+# . Add scoverage-instrumented class files to jar using 'jar uf target/scala-2.11/CoDepFuzz-assembly-1.0.jar target/scala-2.11/examples/fuzzable/<name of instrumented jars>'
 # . Run a subject program e.g. examples.fuzzable.FlightDistance
 # . Process the measurement files produced using CoverageMeasurementConsolidator.scala
 
@@ -15,40 +15,32 @@
 NAME=$1
 PACKAGE=$2
 DURATION=$3
-MODE=$4 # either full, rs or cm
 
 #CLASS_INSTRUMENTED=examples.fuzzable.$NAME # which class needs to be fuzzed DISC vs FWA
 PATH_SCALA_SRC="src/main/scala/examples/$PACKAGE/$NAME.scala"
 PATH_INSTRUMENTED_CLASSES="examples/$PACKAGE/$NAME*"
-DIR_PROVFUZZ_OUT="target/provfuzz-output/$MODE/$NAME"
+DIR_CODEPFUZZ_OUT="target/codepfuzz-output/$NAME"
 
-rm -rf $DIR_PROVFUZZ_OUT
-mkdir -p $DIR_PROVFUZZ_OUT/{scoverage-results,report,log,reproducers,crashes} || exit 1
-
+rm -rf $DIR_CODEPFUZZ_OUT
+mkdir -p $DIR_CODEPFUZZ_OUT/{scoverage-results,report,log,reproducers,crashes} || exit 1
 
 sbt assembly || exit 1
 
-java -cp  target/scala-2.12/ProvFuzz-assembly-1.0.jar \
+java -cp  target/scala-2.12/CoDepFuzz-assembly-1.0.jar \
           utils.ScoverageInstrumenter \
           $PATH_SCALA_SRC \
-          $DIR_PROVFUZZ_OUT/scoverage-results \
+          $DIR_CODEPFUZZ_OUT/scoverage-results \
           || exit
 
 pushd target/scala-2.12/classes || exit 1
-jar uvf  ../ProvFuzz-assembly-1.0.jar \
+jar uvf  ../CoDepFuzz-assembly-1.0.jar \
         $PATH_INSTRUMENTED_CLASSES \
         || exit 1
 popd || exit 1
 
-START_TIME=$(date +"%T %D")
-
-echo -e "Subject:[START] CoFuzz-$MODE $(hostname)\n$NAME $START_TIME" | sendmail ahmad35@vt.edu
-
-java -cp  target/scala-2.12/ProvFuzz-assembly-1.0.jar \
-          runners.RunProvFuzzJar \
+java -cp  target/scala-2.12/CoDepFuzz-assembly-1.0.jar \
+          runners.RunCoDepFuzzJar \
           $NAME \
-          $MODE \
           $DURATION \
-          $DIR_PROVFUZZ_OUT
+          $DIR_CODEPFUZZ_OUT
 
-echo -e "Subject:[END] CoFuzz-$MODE $(hostname)\n$NAME $START_TIME exit $?" | sendmail ahmad35@vt.edu
