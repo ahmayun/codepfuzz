@@ -1,5 +1,6 @@
 package abstraction
 import scala.reflect.ClassTag
+import scala.collection.mutable.{Map, HashMap}
 
 class BasePairRDD[K, V](val data: Seq[(K, V)]) extends PairRDD[K, V] {
   override def map[U: ClassTag](f: ((K, V)) => U): RDD[U] = new BaseRDD(data.map(f))
@@ -9,11 +10,21 @@ class BasePairRDD[K, V](val data: Seq[(K, V)]) extends PairRDD[K, V] {
   override def filter(f: ((K, V)) => Boolean): RDD[(K, V)] = new BasePairRDD(data.filter(f))
 
   def join[W](other: BasePairRDD[K, W]): PairRDD[K, (V, W)] = {
-    val joined = for {
-      (k, v1)   <- data
-      (`k`, v2) <- other.data
-    } yield (k, (v1, v2))
-    new BasePairRDD(joined)
+    var joined = Vector[(K, (V, W))]()
+    var kmap = new scala.collection.mutable.HashMap[K, Vector[V]]
+    for ((k, v) <- data) {
+      if (kmap.contains(k))
+        kmap(k) = kmap(k) :+ v
+      else
+        kmap(k) = Vector(v)
+    }
+    for ((k, w) <- other.data)
+      if (kmap.contains(k)) {
+        for (v <- kmap(k).toList) {
+          joined = joined :+ ((k, (v, w)))
+        }
+      }
+    new BasePairRDD(joined.toSeq)
   }
 
   def reduceByKey(f:(V,V) => V): PairRDD[K,V] = {
