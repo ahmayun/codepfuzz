@@ -13,7 +13,7 @@ import scala.concurrent.duration.DurationInt
 import scala.util.Random
 
 
-class ProvFuzzGuidance(val inputFiles: Array[String], val schemas: Array[Array[Schema[Any]]], val provInfo: ProvInfo, val duration: Int) extends Guidance {
+class ProvFuzzGuidance(val inputFiles: Array[String], val provInfo: ProvInfo, val duration: Int) extends Guidance {
   var last_input = inputFiles
   var coverage: Coverage = new Coverage
   var runs = 0
@@ -49,17 +49,18 @@ class ProvFuzzGuidance(val inputFiles: Array[String], val schemas: Array[Array[S
   val oor_prob = 1.0f //out-of-range probability: prob that a number will be mutated out of range vs normal mutation
 
 
-  def getSchema(d: Int, c: Int): Schema[Any]  = {
+  def inferType(v: String): Schema[Any] = {
     try {
-      this.schemas(d)(c)
+      v.toDouble
+      new Schema[Any](Schema.TYPE_NUMERICAL)
     } catch {
-      case _ => new Schema[Any](Schema.TYPE_OTHER)
+      case _: NumberFormatException => new Schema[Any](Schema.TYPE_OTHER)
     }
+
   }
 
-
   def BFM1(e: String, c: Int, d: Int): String = {
-    val schema = getSchema(d,c)
+    val schema = inferType(e)
     schema.dataType match {
       case Schema.TYPE_OTHER => mutateString(e, this.byte_mut_prob)
       case Schema.TYPE_CATEGORICAL => mutateString(e, this.byte_mut_prob)// schema.values(Random.nextInt(schema.values.length)).toString
@@ -69,7 +70,7 @@ class ProvFuzzGuidance(val inputFiles: Array[String], val schemas: Array[Array[S
   }
 
   def BFM2(e: String, c: Int, d: Int): String = {
-    val schema = getSchema(d, c)
+    val schema = inferType(e)
     schema.dataType match {
       case Schema.TYPE_NUMERICAL => changeNumberFormat(e)
       case _ => e
@@ -131,7 +132,7 @@ class ProvFuzzGuidance(val inputFiles: Array[String], val schemas: Array[Array[S
 
 
   def M1(e: String, c: Int, d: Int): String = {
-    val schema = getSchema(d, c)
+    val schema = inferType(e)
     schema.dataType match {
       case Schema.TYPE_OTHER => mutateString(e, this.byte_mut_prob)
       case Schema.TYPE_CATEGORICAL => mutateString(e, this.byte_mut_prob)// schema.values(Random.nextInt(schema.values.length)).toString
@@ -141,7 +142,7 @@ class ProvFuzzGuidance(val inputFiles: Array[String], val schemas: Array[Array[S
   }
 
   def M2(e: String, c: Int, d: Int): String = {
-    val schema = getSchema(d, c)
+    val schema = inferType(e)
     schema.dataType match {
 //      case Schema.TYPE_NUMERICAL => changeNumberFormat(e)
       case _ => M1(e, c, d)
@@ -213,9 +214,8 @@ class ProvFuzzGuidance(val inputFiles: Array[String], val schemas: Array[Array[S
   }
   def mutator(data: Seq[String], d: Int, c: Int, r: Int, seed: Long): Seq[String] = {
     val rand = new Random(seed)
-    val schema = getSchema(d, c)
-//    println(s"d=$d,c=$c,r=$r:\n${data.mkString("\n")}")
     val m_row = data(r).split(',')
+    val schema = inferType(m_row(c))
     val equalized = "<testdummy>" //rand.nextString(m_row(c).length) // mostly produces non english characters
     m_row.update(c, applySchemaAwareMutation(if(flipCoin(0.1f,rand)) equalized else m_row(c), schema, rand))
     data.updated(r, m_row.mkString(","))
@@ -273,91 +273,6 @@ class ProvFuzzGuidance(val inputFiles: Array[String], val schemas: Array[Array[S
     stagedMutations.foldLeft(dataset)((mutated, mutation) => mutation(mutated))
   }
 
-//
-//  def applyJoinMutations(datasets: Array[Seq[String]], same_mut_locations: Array[Array[(Int, Int, Int)]]): Array[Seq[String]] = {
-//    val staged_mutations = stageMutations(same_mut_locations)
-//    datasets.zipWithIndex.map{case (d, i) => applyStagedMutations(d, staged_mutations(i))}
-//  }
-//
-//  def duplicateRows(datasets: Array[Seq[String]],
-//                    mut_deps: Array[Array[(Int, Int, Int)]],
-//                    ds_cols: Array[(Int, Array[Int])]): (Array[Seq[String]], Array[Array[(Int, Int, Int)]]) = {
-//
-//    val min_keys = 3
-//    val min_vals = 3
-//    val focusFodder = 2
-//
-//    val joint_ds_cols = ds_cols ++ mut_deps.flatMap{arr =>
-//      arr
-//        .groupBy(_._1)
-//        .mapValues(_.groupBy(_._2).map(_._1))
-//        .mapValues(_.toArray)
-//    }
-//    val ds_to_mutate = joint_ds_cols.map(_._1).toSet
-//
-//    //duplicate a random row from dataset for gbk fodder, will append to dataset later
-//    //below line returns (ds, <row to duplicate>)
-//    val dup_rows = ds_to_mutate.map{
-//      case ds =>
-//        val mut_ds = datasets(ds)
-//        (ds, mut_ds(Random.nextInt(mut_ds.length)))
-//    }.toArray
-//    val gbk_fodder = dup_rows.map{case (ds, row) => ds -> (0 until min_keys * min_vals).map{_ => row}}.toMap
-//
-//    //duplicate a random row from dataset for focus fodder, will append to dataset later
-//    //below line returns (ds, <row to duplicate>)
-//    val dup_rows_focus = ds_to_mutate.map{
-//      case ds =>
-//        val mut_ds = datasets(ds)
-//        (ds, mut_ds(Random.nextInt(mut_ds.length)))
-//    }.toArray
-//    val focus_fodder = dup_rows_focus.map{case (ds, row) => ds -> (0 until focusFodder).map{_ => row}}.toMap
-//
-//    //update dependencies
-//    val new_deps = (0 until min_keys).map {
-//      r =>
-//        dup_rows.flatMap {
-//          case (ds, _) =>
-//            val mut_ds = datasets(ds)
-//            (mut_ds.length + min_keys * r until mut_ds.length + min_keys * r + min_vals).flatMap{
-//              row =>
-//                val map_ds_cols = joint_ds_cols.toMap
-//                map_ds_cols(ds).map(col => (ds, col, row))
-//            }
-//        }
-//    }.toArray
-//
-//    // append new rows to datasets
-//    // append new dependencies to dependency list
-//    val new_datasets = datasets.zipWithIndex.map{
-//      case (ds, i) if gbk_fodder.contains(i) && focus_fodder.contains(i) => ds ++ gbk_fodder(i) ++ focus_fodder(i)
-//      case (ds, i) if gbk_fodder.contains(i) => ds ++ gbk_fodder(i)
-//      case (ds, i) if focus_fodder.contains(i) => ds ++ focus_fodder(i)
-//      case (ds, _) => ds
-//    }
-//    (new_datasets, mut_deps ++ new_deps)
-//  }
-//
-//  def guidedDuplication(datasets: Array[Seq[String]],
-//                        gbk_dependencies: Map[Int, Array[(Int, Array[Int])]],
-//                        same_mut_locations: Array[Array[(Int, Int, Int)]]): (Array[Seq[String]], Array[Array[(Int, Int, Int)]]) = {
-//
-//    val new_ds = gbk_dependencies.foldLeft((datasets, same_mut_locations)){
-//      case ((dup_ds, mut_deps), (_, ds_cols)) =>
-//        duplicateRows(dup_ds, mut_deps, ds_cols)
-//    }
-//    new_ds
-//  }
-//
-//  def mutate(inputFiles: Array[String]): Array[String] = {
-//    val input_datasets = inputFiles.map(f => FileUtils.readDatasetPart(f, 0))
-//    val same_mut_locations = getSameMutLocs(probe_info.join_relations, input_datasets.map(_.length))
-//    val (duplicated, new_dependencies) = guidedDuplication(input_datasets, probe_info.gbk_dependencies, same_mut_locations)
-//    val joinMuts = if (new_dependencies.length > 0) applyJoinMutations(duplicated, new_dependencies) else duplicated
-//    val (focusedMuts, nop_cols) = applyFocusedMutations(joinMuts, new_dependencies)
-//    val mutated_datasets = applyNormMutations(focusedMuts, new_dependencies)
-//    mutated_datasets.zipWithIndex.map{case (e, i) => writeToFile(e, i)}
-//  }
 
   def applyCoDependentMutations(inputDatasets: Array[Seq[String]], provInfo: ProvInfo): Array[Seq[String]] = {
 //    println(provInfo)
