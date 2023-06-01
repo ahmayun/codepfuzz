@@ -9,16 +9,17 @@
 # . Process the measurement files produced using CoverageMeasurementConsolidator.scala
 
 # SAMPLE RUN:
-#       ./run-bigfuzz.sh DeliveryFaults faulty 86400; echo "Subject: $(hostname): bigfuzz (exit $?)" | sendmail ahmad35@vt.edu
+#       ./run-codepfuzz.sh WebpageSegmentation 20 seeds/reduced_data/webpage_segmentation/{before,after}
 
 # Temporarily hard-coded, should be parsed from args
 NAME=$1
-PACKAGE=$2
-DURATION=$3
+DURATION=$2
+shift 2
+ARGS=$*
 
 #CLASS_INSTRUMENTED=examples.fuzzable.$NAME # which class needs to be fuzzed DISC vs FWA
-PATH_SCALA_SRC="src/main/scala/examples/$PACKAGE/$NAME.scala"
-PATH_INSTRUMENTED_CLASSES="examples/$PACKAGE/$NAME*"
+PATH_SCALA_SRC="src/main/scala/examples/faulty/$NAME.scala"
+PATH_INSTRUMENTED_CLASSES="examples/faulty/$NAME*"
 DIR_CODEPFUZZ_OUT="target/codepfuzz-output/$NAME"
 
 rm -rf $DIR_CODEPFUZZ_OUT
@@ -29,7 +30,7 @@ sbt assembly || exit 1
 java -cp  target/scala-2.12/CoDepFuzz-assembly-1.0.jar \
           utils.ScoverageInstrumenter \
           $PATH_SCALA_SRC \
-          $DIR_CODEPFUZZ_OUT/scoverage-results \
+          $DIR_CODEPFUZZ_OUT/scoverage-results/referenceProgram \
           || exit
 
 pushd target/scala-2.12/classes || exit 1
@@ -42,5 +43,7 @@ java -cp  target/scala-2.12/CoDepFuzz-assembly-1.0.jar \
           runners.RunCoDepFuzzJar \
           $NAME \
           $DURATION \
-          $DIR_CODEPFUZZ_OUT
+          $DIR_CODEPFUZZ_OUT \
+          $ARGS
+
 
