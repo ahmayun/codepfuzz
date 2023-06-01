@@ -8,7 +8,7 @@ object RunProvInfoExtractor {
 
   def main(args: Array[String]): Unit = {
 
-    println("RunProvFuzzJar called with following args:")
+    println("RunCoDepFuzzJar called with following args:")
     println(args.mkString("\n"))
 
     // ==P.U.T. dependent configurations=======================

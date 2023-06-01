@@ -8,7 +8,7 @@ import utils.ProvFuzzUtils
 
 import java.io.File
 
-object RunProvFuzzJar {
+object RunCoDepFuzzJar {
 
   def main(args: Array[String]): Unit = {
 
