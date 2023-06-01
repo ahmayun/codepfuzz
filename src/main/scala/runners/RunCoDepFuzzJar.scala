@@ -35,16 +35,11 @@ object RunProvFuzzJar {
       inputFiles)
 
     val guidance = new ProvFuzzGuidance(inputFiles, provInfo, duration.toInt)
-
     val (stats, timeStartFuzz, timeEndFuzz) = NewFuzzer.FuzzMutants(program, program, guidance, outDir)
-
     reportStats(program, stats, timeStartFuzz, timeEndFuzz)
-
     println("ProvInfo: ")
     println(provInfo)
   }
-
-
 
   def reportStats(program: Program, stats: FuzzStats, timeStartFuzz: Long, timeEndFuzz: Long): Unit = {
     val durationProbe = 0.1f // (timeEndProbe - timeStartProbe) / 1000.0
