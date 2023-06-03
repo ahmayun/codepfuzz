@@ -50,5 +50,6 @@ java -cp  target/scala-2.12/CoDepFuzz-assembly-1.0.jar \
 python3 gen_graph.py \
         --coords-file $DIR_CODEPFUZZ_OUT/referenceProgram/coverage.tuples \
         --outfile graphs/graph-$NAME-coverage.png \
+        --title " Coverage: $NAME" \
         --x-label "Time (s)" \
         --y-label "Statement Coverage (%)"
