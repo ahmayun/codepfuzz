@@ -23,7 +23,7 @@ PATH_INSTRUMENTED_CLASSES="examples/faulty/$NAME*"
 DIR_CODEPFUZZ_OUT="target/codepfuzz-output/$NAME"
 
 rm -rf $DIR_CODEPFUZZ_OUT
-mkdir -p $DIR_CODEPFUZZ_OUT/{scoverage-results,report,log,reproducers,crashes} || exit 1
+mkdir -p graphs $DIR_CODEPFUZZ_OUT/{scoverage-results,report,log,reproducers,crashes} || exit 1
 
 sbt assembly || exit 1
 
@@ -47,3 +47,8 @@ java -cp  target/scala-2.12/CoDepFuzz-assembly-1.0.jar \
           $ARGS
 
 
+python3 gen_graph.py \
+        --coords-file $DIR_CODEPFUZZ_OUT/referenceProgram/coverage.tuples \
+        --outfile graphs/graph-$NAME-coverage.png \
+        --x-label "Time (s)" \
+        --y-label "Statement Coverage (%)"
