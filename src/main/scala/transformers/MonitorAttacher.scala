@@ -1,8 +1,8 @@
-package refactor
+package transformers
 
 import java.nio.file.Files
 import scala.meta.{Defn, Import, Importee, Importer, Init, Input, Name, Source, Stat, Term, Transformer, Tree, Type, XtensionParseInputLike}
-import refactor.Constants
+import transformers.Constants
 
 object MonitorAttacher extends Transformer {
 

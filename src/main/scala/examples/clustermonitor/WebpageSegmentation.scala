@@ -9,11 +9,14 @@ import taintedprimitives.{TaintedInt, TaintedString}
 
 object WebpageSegmentation extends Serializable {
   def main(args: Array[String]): ProvInfo = {
-    println(s"webpage WebpageSegmentation args ${args.mkString(",")}")
     val sparkConf = new SparkConf()
-    if(args.length < 3) throw new IllegalArgumentException("Program was called with too few args")
+
+    if(args.length < 3)
+      throw new IllegalArgumentException("Program was called with too few args")
+
     sparkConf.setMaster(args(2))
     sparkConf.setAppName("WebpageSegmentation Monitored")
+
     val before_data = args(0)
     val after_data = args(1)
     val sc = new SparkContext(sparkConf)
@@ -22,8 +25,8 @@ object WebpageSegmentation extends Serializable {
     //    Provenance.setProvenanceType("dual")
     val before = ctx.textFileProv(before_data, _.split(','))
     val after = ctx.textFileProv(after_data, _.split(','))
-    val boxes_before = toPairRDD[TaintedString, (TaintedString, Vector[TaintedInt])](before.map(r => (r(0)+"*"+r(r.length - 2)+"*"+r.last, (r(0), r.slice(1, r.length-2).map(_.toInt).toVector))))
-    val boxes_after = toPairRDD[TaintedString, (TaintedString, Vector[TaintedInt])](after.map(r => (r(0)+"*"+r(r.length - 2)+"*"+r.last, (r(0), r.slice(1, r.length-2).map(_.toInt).toVector))))
+    val boxes_before = before.map(r => (r(0)+"*"+r(r.length - 2)+"*"+r.last, (r(0), r.slice(1, r.length-2).map(_.toInt).toVector)))
+    val boxes_after = after.map(r => (r(0)+"*"+r(r.length - 2)+"*"+r.last, (r(0), r.slice(1, r.length-2).map(_.toInt).toVector)))
     val boxes_after_by_site_ungrouped = after.map(r => (r(0), (r.slice(1, r.length - 2).map(_.toInt).toVector, r(r.length - 2), r.last)))
     val boxes_after_by_site = _root_.monitoring.Monitors.monitorGroupByKey(boxes_after_by_site_ungrouped, 0)
 

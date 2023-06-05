@@ -1,12 +1,8 @@
 package runners
 
-import fuzzer.{FuzzStats, Fuzzer, Global, InstrumentedProgram, NewFuzzer, Program}
-import guidance.{BigFuzzGuidance, ProvFuzzGuidance, ProvFuzzRSGuidance}
-import scoverage.report.ScoverageHtmlWriter
-import scoverage.{IOUtils, Serializer}
-import utils.ProvFuzzUtils
-
-import java.io.File
+import fuzzer.{FuzzStats, Global, InstrumentedProgram, NewFuzzer, Program}
+import guidance.ProvFuzzGuidance
+import transformers.SparkProgramTransformer
 
 object RunCoDepFuzzJar {
 
@@ -19,26 +15,70 @@ object RunCoDepFuzzJar {
       val Some(files) = Config.mapInputFilesReduced.get(name)
       (name, "20", s"target/codepfuzz-output/$name", files)
     }
-
     val Some(funFuzzable) = Config.mapFunFuzzables.get(benchmarkName)
-    val benchmarkClass = s"examples.faulty.$benchmarkName"
-//    val Some(funProbeAble) = Config.mapFunProbeAble.get(benchmarkName)
-    val Some(provInfo) = Config.provInfos.get(benchmarkName)
-    // ========================================================
+//    val Some(codepInfo) = Config.provInfos.get(benchmarkName)
+    val outPathInstrumented = "src/main/scala/examples/instrumented"
+    val outPathFWA = "src/main/scala/examples/fwa"
 
-    val benchmarkPath = s"src/main/scala/${benchmarkClass.split('.').mkString("/")}.scala"
+    val sparkProgramClass = s"examples.benchmarks.$benchmarkName"
+    val sparkProgramPath = s"src/main/scala/${sparkProgramClass.split('.').mkString("/")}.scala"
+
+    val instPackage = "examples.instrumented"
+    val instProgramClass = s"$instPackage.$benchmarkName"
+    val instProgramPath = s"$outPathInstrumented/$benchmarkName.scala"
+    val fwaPackage = "examples.fwa"
+    val fwaProgramClass = s"$fwaPackage.$benchmarkName"
+    val fwaProgramPath = s"$outPathFWA/$benchmarkName.scala"
+
+    val transformer = new SparkProgramTransformer(sparkProgramPath)
+
+    transformer
+      .changePackageTo(instPackage)
+      .addImports(
+        List(
+          "sparkwrapper.SparkContextWithDP",
+          "taintedprimitives._",
+          "taintedprimitives.SymImplicits._"
+        )
+      )
+      .attachMonitors()
+      .writeTo(instProgramPath)
+
+    transformer
+      .changePackageTo(fwaPackage)
+      .replaceImports(
+        List(
+          ("org.apache.spark.SparkConf", "abstraction.SparkConf"),
+          ("org.apache.spark.SparkContext", "abstraction.SparkContext")
+        )
+      )
+      .writeTo(fwaProgramPath)
+
+    sys.exit(0)
+
+
+
+    val instProgram = new InstrumentedProgram(
+      benchmarkName,
+      instProgramClass,
+      instProgramPath,
+      x => null,
+      inputFiles)
+
+    val codepInfo = instProgram.invokeMain(inputFiles)
+
     val program = new Program(
       benchmarkName,
-      benchmarkClass,
-      benchmarkPath,
+      fwaProgramClass,
+      fwaProgramPath,
       funFuzzable,
       inputFiles)
 
-    val guidance = new ProvFuzzGuidance(inputFiles, provInfo, duration.toInt)
+    val guidance = new ProvFuzzGuidance(inputFiles, codepInfo, duration.toInt)
     val (stats, timeStartFuzz, timeEndFuzz) = NewFuzzer.FuzzMutants(program, program, guidance, outDir)
     reportStats(program, stats, timeStartFuzz, timeEndFuzz)
-    println("ProvInfo: ")
-    println(provInfo)
+    println("Co-dependence Info: ")
+    println(codepInfo)
   }
 
   def reportStats(program: Program, stats: FuzzStats, timeStartFuzz: Long, timeEndFuzz: Long): Unit = {

@@ -4,6 +4,7 @@ import org.apache.spark.rdd.RDD
 import provenance.data.Provenance
 import taintedprimitives.Utils
 
+import scala.language.implicitConversions
 import scala.reflect.ClassTag
 
 class FlatProvenanceDefaultRDD[T: ClassTag](override val rdd: RDD[ProvenanceRow[T]]) extends

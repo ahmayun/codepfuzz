@@ -1,4 +1,4 @@
-package refactor
+package transformers
 
 object TestCases {
 
@@ -20,7 +20,7 @@ object TestCases {
         |""".stripMargin,
     "predicateTest2" ->
       """
-        |package refactor.testout
+        |package transformers.testout
         |
         |import org.apache.spark.{SparkConf, SparkContext}
         |
@@ -44,7 +44,7 @@ object TestCases {
 
     "fullTestCase1" ->
       """
-        |package refactor.testout
+        |package transformers.testout
         |
         |import org.apache.spark.{SparkConf, SparkContext}
         |
@@ -207,7 +207,7 @@ object TestCases {
     //Using triple quotes for cases where the predicate contains string literals
     val quasi_exp = s"""q${tripleQuotes}${unquoteBlock(exp.toString())}${tripleQuotes}"""
     println(s"STRUCTURE $exp == ${exp.structure}")
-    val wrapped = s"_root_.refactor.BranchTracker.provWrapper(${remove_marker(exp).toString()}, $quasi_exp, ${spreadVars(prov)}, $b_id)"
+    val wrapped = s"_root_.transformers.BranchTracker.provWrapper(${remove_marker(exp).toString()}, $quasi_exp, ${spreadVars(prov)}, $b_id)"
     b_id += 1
     println(wrapped)
     wrapped.parse[Term].get
@@ -226,9 +226,9 @@ object TestCases {
   val math_funcs = Array("sin", "cos", "tan", "pow")
   val supported_aggops = ListBuffer[String]("join", "reduceByKey", "groupByKey")
   val aggops_map = Map(
-    "join" -> "_root_.refactor.BranchTracker.joinWrapper".parse[Term].get,
-    "reduceByKey" -> "_root_.refactor.BranchTracker.reduceByKeyWrapper".parse[Term].get,
-    "groupByKey" -> "_root_.refactor.BranchTracker.groupByKeyWrapper".parse[Term].get)
+    "join" -> "_root_.transformers.BranchTracker.joinWrapper".parse[Term].get,
+    "reduceByKey" -> "_root_.transformers.BranchTracker.reduceByKeyWrapper".parse[Term].get,
+    "groupByKey" -> "_root_.transformers.BranchTracker.groupByKeyWrapper".parse[Term].get)
   val aggops_ids = mutable.Map("join" -> -1, "reduceByKey" -> -1, "groupByKey" -> -1)
 
   override def apply(tree: meta.Tree): meta.Tree = {
@@ -237,7 +237,7 @@ object TestCases {
       case node @ Defn.Def(a, b @ Term.Name(fname), c, d, e, Term.Block(code)) =>
         println("case Defn.Def met for ", node)
         if (fname.equals("main")) {
-          val inst = code :+ "_root_.refactor.BranchTracker.finalizeProvenance()".parse[Term].get
+          val inst = code :+ "_root_.transformers.BranchTracker.finalizeProvenance()".parse[Term].get
           return Defn.Def(a, b, c, d, e, super.apply(Term.Block(inst)).asInstanceOf[Term])
         }
         super.apply(node)

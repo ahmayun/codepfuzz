@@ -3,6 +3,7 @@ package provenance.rdd
 import org.apache.spark.rdd.RDD
 import org.apache.spark.storage.StorageLevel
 
+import scala.language.implicitConversions
 import scala.reflect.ClassTag
 
 abstract class BaseProvenanceRDD[T : ClassTag](override val rdd: RDD[_]) extends ProvenanceRDD[T] {
@@ -38,3 +39,4 @@ abstract class BaseProvenanceRDD[T : ClassTag](override val rdd: RDD[_]) extends
   }
 
 }
+

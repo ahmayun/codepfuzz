@@ -2,7 +2,7 @@ package fuzzer
 
 
 trait ExecutableProgram {
-  def invokeMain(args: Array[String]): Unit
+  def invokeMain(args: Array[String]): Any
   def name: String
   def classname: String
   def classpath: String
@@ -37,8 +37,10 @@ class InstrumentedProgram(val name: String,
                           val classname: String,
                           val classpath: String,
                           val main: Array[String] => ProvInfo,
-                          val args: Array[String]) {
-
+                          val args: Array[String]) extends ExecutableProgram {
+  def invokeMain(args: Array[String]): ProvInfo = {
+    main(args)
+  }
 }
 
 class ExecStats(

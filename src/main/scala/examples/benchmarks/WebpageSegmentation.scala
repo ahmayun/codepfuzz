@@ -5,7 +5,7 @@ import org.apache.spark.{SparkConf, SparkContext}
 object WebpageSegmentation extends Serializable {
 
   def main(args: Array[String]): Unit = {
-    println(s"webpage WebpageSegmentation args ${args.mkString(",")}")
+    println(s"WebpageSegmentation: ${args.mkString("\n")}")
     val sparkConf = new SparkConf()
     sparkConf.setMaster("local[*]")
     sparkConf.setAppName("Webpage Segmentation").set("spark.executor.memory", "2g")
@@ -16,8 +16,8 @@ object WebpageSegmentation extends Serializable {
     val before = ctx.textFile(before_data).map(_.split(','))
     val after = ctx.textFile(after_data).map(_.split(','))
 
-    val boxes_before = before.map(r => (s"${r(0)}*${r(r.length-2)}*${r.last}", (r(0), r.slice(1, r.length-2).map(_.toInt).toVector)))
-    val boxes_after = after.map(r => (s"${r(0)}*${r(r.length-2)}*${r.last}", (r(0), r.slice(1, r.length-2).map(_.toInt).toVector)))
+    val boxes_before = before.map(r => (r(0) + "*" + r(r.length-2) + "*" + r.last, (r(0), r.slice(1, r.length-2).map(_.toInt).toVector)))
+    val boxes_after = after.map(r => (r(0) + "*" + r(r.length-2) + "*" + r.last, (r(0), r.slice(1, r.length-2).map(_.toInt).toVector)))
     val boxes_after_by_site = after.map(r => (r(0), (r.slice(1, r.length-2).map(_.toInt).toVector, r(r.length-2), r.last)))
       .groupByKey()
     //    after.collect().foreach(r => println(r.toVector))
