@@ -115,6 +115,7 @@ object Monitors extends Serializable {
 
 
   def monitorGroupByKey[K<:TaintedBase:ClassTag,V:ClassTag](dataset: PairProvenanceDefaultRDD[K,V], id: Int): PairProvenanceDefaultRDD[K, Iterable[V]] = {
+    println("monitoring gbk")
     dataset
       .sample(false, Config.percentageProv)
       .map { case (k, _) => ListBuffer(k.getProvenance()) }

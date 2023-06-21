@@ -1,22 +1,15 @@
 package testfiles
 
-import scala.util.Random
+import org.apache.spark.{SparkConf, SparkContext}
 
 object Test5 {
-  def generateString(len: Int): String = {
-    Random.alphanumeric.take(len).mkString
-  }
-
-  def randIntBetween(min: Int, max: Int): Int = {
-    min + Random.nextInt( (max - min) + 1 )
-  }
-
-  def randFloatBetween(min: Int, max: Int): Float = {
-    (randIntBetween(min*math.pow(10.0, 4).toInt, max*math.pow(10.0, 4).toInt)/math.pow(10.0, 4)).toFloat
-  }
 
   def main(args: Array[String]): Unit = {
-    println(randIntBetween(-180, 180))
-    println(Array("scheduled", "departed", "completed").apply(Random.nextInt(3)))
+    val sc = new SparkContext(
+      new SparkConf()
+        .setAppName("DepFuzz")
+        .setMaster("local[*]")
+    )
+    examples.instrumented.WebpageSegmentation.main(Array("seeds/reduced_data/webpage_segmentation/before", "seeds/reduced_data/webpage_segmentation/after", "local[*]"))
   }
 }

@@ -165,14 +165,14 @@ object NewFuzzer {
 
     val same = sameTerminationStatus && sameOutput && sameError
 
-    println(
-      s"""============COMPARE result: ${same} inputs: ${o1.input.mkString("(",",",")")} iter: ${Global.iteration} ================
-         |------------REF crashed: ${o1.crashed} ---------------------
-         |${if(o1.crashed) o1.stderr else o1.stdout}
-         |------------MUTANT crashed: ${o2.crashed} ---------------------
-         |${if(o2.crashed) o2.stderr else o2.stdout}
-         |============COMPARE END================
-         |""".stripMargin)
+//    println(
+//      s"""============COMPARE result: ${same} inputs: ${o1.input.mkString("(",",",")")} iter: ${Global.iteration} ================
+//         |------------REF crashed: ${o1.crashed} ---------------------
+//         |${if(o1.crashed) o1.stderr else o1.stdout}
+//         |------------MUTANT crashed: ${o2.crashed} ---------------------
+//         |${if(o2.crashed) o2.stderr else o2.stdout}
+//         |============COMPARE END================
+//         |""".stripMargin)
 
     same
   }

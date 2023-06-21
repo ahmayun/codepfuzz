@@ -17,8 +17,22 @@ case class SparkProgramTransformer(tree: Tree) extends Transformer {
     java.nio.file.Files.write(path, tree.toString().getBytes())
   }
 
-  def replaceImports(strings: List[(String, String)]): SparkProgramTransformer = {
+  // INCOMPLETE
+  def splitImports(): SparkProgramTransformer = {
     this
+  }
+
+  // INCOMPLETE: hardcoded for now
+  def _replaceImports(toReplace: Map[String, String]): SparkProgramTransformer = {
+    SparkProgramTransformer(tree.transform {
+      case q"import org.apache.spark.{SparkConf,SparkContext}" => q"import abstraction.{SparkConf,SparkContext}"
+      case q"import org.apache.spark.SparkContext" => q"import abstraction.SparkContext"
+      case q"import org.apache.spark.SparkConf" => q"import abstraction.SparkConf"
+    })
+  }
+
+  def replaceImports(toReplace: Map[String, String]): SparkProgramTransformer = {
+    splitImports()._replaceImports(toReplace)
   }
 
   def changePackageTo(pkg: String): SparkProgramTransformer = {
@@ -53,30 +67,91 @@ case class SparkProgramTransformer(tree: Tree) extends Transformer {
     Defn.Def(mods, name, tparams, paramss, decltpe, Term.Block(code :+ statement))
   }
 
-  def attachMonitors(): SparkProgramTransformer = {
+  def modifyFunctionArgs(funcName: String, iParam: Int, nameType: (String, String)): SparkProgramTransformer = {
+    val (sNewName, sNewType) = nameType
+    val custom = new Transformer {
+      override def apply(t: Tree): Tree = t match {
+        case Defn.Def(fmods, fname@Term.Name(`funcName`), ftparams, fparamss, fdecltpe, fbody) =>
+          val newType = sNewType.parse[Type].get
+          val Term.Param(pmods, pname, pdecltpe, pdefault) = fparamss.head(iParam)
+          val newParam = Term.Param(
+            pmods,
+            if(sNewName == null) pname else Term.Name(sNewName),
+            if(sNewType == null) pdecltpe else Some(newType),
+            pdefault
+          )
+          val modifiedParams = fparamss.head.updated(iParam, newParam)
+          Defn.Def(fmods, fname, ftparams, List(modifiedParams), fdecltpe, fbody)
+        case node@_ =>
+          super.apply(node)
+      }
+    }
+    SparkProgramTransformer(custom(tree))
+  }
 
+
+  def modifyFunctionReturnType(funcName: String, sNewType: String): SparkProgramTransformer = {
+    val custom = new Transformer {
+      override def apply(t: Tree): Tree = t match {
+        case Defn.Def(fmods, fname@Term.Name(`funcName`), ftparams, fparamss, _, fbody) =>
+          val newType = sNewType.parse[Type].get
+          Defn.Def(fmods, fname, ftparams, fparamss, Some(newType), fbody)
+        case node@_ =>
+          super.apply(node)
+      }
+    }
+    SparkProgramTransformer(custom(tree))
+  }
+
+  def enableTaintProp(): SparkProgramTransformer = {
     val custom = new Transformer {
       override def apply(t: Tree): Tree = t match {
         case node@Term.New(Init(Type.Name("SparkContext"), _, _)) =>
           modifySparkContext(node)
+        case node@Term.Apply(Term.Select(Term.Name("SparkContext"), Term.Name("getOrCreate")), _) =>
+          modifySparkContext(node)
         case node@Term.Apply(Term.Select(Term.Apply(Term.Select(_, Term.Name("textFile")), _), Term.Name("map")), _) =>
           modifyDatasetLoading(node)
-        case node@Term.Apply(Term.Select(_, name), _) if Constants.MAP_TRANSFORMS.contains(name.value) =>
-          val term = attachDFOMonitor(node)
-          super.apply(term)
-        case node@Defn.Def(_, Term.Name("main"), _, _, _, _) =>
-          super.apply(insertAtEndOfFunction(node, Constants.CONSOLIDATOR.parse[Stat].get))
         case Type.Name(name) if Constants.MAP_PRIM2SYM.contains(name) =>
           Type.Name(Constants.MAP_PRIM2SYM(name))
-        //        case Term.If(predicate, ifBody, elseBody) =>
-        //          val term = attachPredicateMonitor(predicate, id);
-        //          super.apply(Term.If(term, ifBody, elseBody))
         case node@_ =>
           super.apply(node)
       }
     }
 
     SparkProgramTransformer(custom(tree))
+      .modifyFunctionArgs("main", 0, (null, "Array[String]"))
+      .modifyFunctionReturnType("main", "ProvInfo")
+      .addImports(
+        List(
+          "sparkwrapper.SparkContextWithDP",
+          "taintedprimitives._",
+          "taintedprimitives.SymImplicits._"
+        )
+      )
+  }
+
+  def attachMonitors(): SparkProgramTransformer = {
+
+    val custom = new Transformer {
+      override def apply(t: Tree): Tree = t match {
+        case node@Term.Apply(Term.Select(_, name), _) if Constants.MAP_TRANSFORMS.contains(name.value) =>
+          val term = attachDFOMonitor(node)
+          super.apply(term)
+        case node@Defn.Def(_, Term.Name("main"), _, _, _, _) =>
+          super.apply(insertAtEndOfFunction(node, Constants.CONSOLIDATOR.parse[Stat].get))
+//      case Term.If(predicate, ifBody, elseBody) =>
+//        val term = attachPredicateMonitor(predicate, id);
+//        super.apply(Term.If(term, ifBody, elseBody))
+        case node@_ =>
+          super.apply(node)
+      }
+    }
+
+    SparkProgramTransformer(custom(tree))
+      .addImports(
+        List("fuzzer.ProvInfo")
+      )
   }
 
   def addImports(imports: List[String]): SparkProgramTransformer = {
@@ -89,7 +164,6 @@ case class SparkProgramTransformer(tree: Tree) extends Transformer {
       }
     )
   }
-
 }
 
 object SparkProgramTransformer {

@@ -23,12 +23,13 @@ class Program(val name: String,
 class DynLoadedProgram( val name: String,
                         val classname: String,
                         val classpath: String,
-                        val main: java.lang.reflect.Method,
                         val args: Array[String]) extends ExecutableProgram {
 
-  val runtimeClass = Class.forName(classname)
-  def invokeMain(args: Array[String]): Unit = {
-    main.invoke(runtimeClass, args)
+  def invokeMain(_args: Array[String]): ProvInfo = {
+    val some = utils.reflection.DynamicClassLoader.invokeMethod(classname, "main", _args)
+    println(some)
+    val Some(coDepInfo) = some
+    coDepInfo.asInstanceOf[ProvInfo]
   }
 }
 

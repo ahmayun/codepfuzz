@@ -85,10 +85,17 @@ class SparkContextWithDP(sc: SparkContext) {
 
   def textFileProv(filepath: String, createCol: String => Array[String]): ProvenanceRDD[Array[TaintedString]] = {
     // have to define this because predef identity was detecting as Nothing => Nothing
-    val identity = (s: Array[TaintedString], p: Provenance) => (s, p)
-    val baseRDD = textFileProvenanceCreator(filepath, identity, createCol)
-    Utils.setUDFAwareDefaultValue(true)
-    new FlatProvenanceDefaultRDD[Array[TaintedString]](baseRDD)
+    try{
+      val identity = (s: Array[TaintedString], p: Provenance) => (s, p)
+      val baseRDD = textFileProvenanceCreator(filepath, identity, createCol)
+      Utils.setUDFAwareDefaultValue(true)
+      new FlatProvenanceDefaultRDD[Array[TaintedString]](baseRDD)
+    } catch {
+      case e =>
+        println(e)
+        println(e.getStackTrace.mkString("\n"))
+        sys.exit(1)
+    }
   }
 
 }

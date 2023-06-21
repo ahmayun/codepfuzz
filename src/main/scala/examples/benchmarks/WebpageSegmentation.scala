@@ -1,17 +1,17 @@
 package examples.benchmarks
 
-import org.apache.spark.{SparkConf, SparkContext}
+import org.apache.spark.{SparkConf,SparkContext}
 
 object WebpageSegmentation extends Serializable {
 
   def main(args: Array[String]): Unit = {
     println(s"WebpageSegmentation: ${args.mkString("\n")}")
-    val sparkConf = new SparkConf()
-    sparkConf.setMaster("local[*]")
-    sparkConf.setAppName("Webpage Segmentation").set("spark.executor.memory", "2g")
+    val sparkConf = new SparkConf().setMaster(args(2))
+    sparkConf.setAppName("TPC-DS Query 6")
+    val ctx = SparkContext.getOrCreate(sparkConf)
+    ctx.setLogLevel("ERROR")
     val before_data = args(0) // "datasets/fuzzing_seeds/webpage_segmentation/before"
     val after_data = args(1) // "datasets/fuzzing_seeds/webpage_segmentation/after"
-    val ctx = new SparkContext(sparkConf) //set up lineage context and start capture lineage
     ctx.setLogLevel("ERROR")
     val before = ctx.textFile(before_data).map(_.split(','))
     val after = ctx.textFile(after_data).map(_.split(','))
@@ -24,7 +24,7 @@ object WebpageSegmentation extends Serializable {
 
     val pairs = boxes_before.join(boxes_after)
     val changed = pairs
-      .filter{
+      .filter {
         case (_, ((_, v1), (_, v2))) => !v1.equals(v2)
       }
       .map {
@@ -38,6 +38,7 @@ object WebpageSegmentation extends Serializable {
     inter.map{
       case (url, ((box1, _, _), lst)) => (url, lst.map{case (box, _, _) => box}.map(intersects(_, box1)))
     }.collect().foreach(println)
+    println("hello world")
     //    val iRects =  pairs.map{ case (id, (rect1, rect2)) => (id, intersects(rect1, rect2))}
     //    iRects.collect().foreach(println)
 //    ctx.stop()

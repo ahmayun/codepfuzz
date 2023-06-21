@@ -6,7 +6,7 @@ import org.apache.spark.{SparkConf, SparkContext}
 import transformers.SparkProgramTransformer
 
 
-object RunCoDepFuzzJar {
+object RunFuzzerJar {
 
   def main(args: Array[String]): Unit = {
 
@@ -15,7 +15,7 @@ object RunCoDepFuzzJar {
     } else {
       val name = "WebpageSegmentation"
       val Some(files) = Config.mapInputFilesReduced.get(name)
-      (name, "20", s"target/codepfuzz-output/$name", files)
+      (name, "20", s"target/depfuzz-output/$name", files)
     }
     val Some(funFuzzable) = Config.mapFunFuzzables.get(benchmarkName)
 //    val Some(codepInfo) = Config.provInfos.get(benchmarkName)
@@ -52,7 +52,7 @@ object RunCoDepFuzzJar {
 
     val sc = new SparkContext(
       new SparkConf()
-        .setAppName("CoDepFuzz")
+        .setAppName("DepFuzz")
         .setMaster("local[*]")
     )
 
