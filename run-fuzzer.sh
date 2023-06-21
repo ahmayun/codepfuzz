@@ -4,12 +4,12 @@
 
 # . Decide an output directory for coverage output
 # . Run ScoverageInstrumenter.scala using the assembled jar file
-# . Add scoverage-instrumented class files to jar using 'jar uf target/scala-2.11/CoDepFuzz-assembly-1.0.jar target/scala-2.11/examples/fuzzable/<name of instrumented jars>'
+# . Add scoverage-instrumented class files to jar using 'jar uf target/scala-2.11/$JAR_NAME target/scala-2.11/examples/fuzzable/<name of instrumented jars>'
 # . Run a subject program e.g. examples.fuzzable.FlightDistance
 # . Process the measurement files produced using CoverageMeasurementConsolidator.scala
 
 # SAMPLE RUN:
-#       ./run-codepfuzz.sh WebpageSegmentation 20 seeds/reduced_data/webpage_segmentation/{before,after}
+#       ./run-fuzzer.sh WebpageSegmentation 20 seeds/reduced_data/webpage_segmentation/{before,after}
 
 # Temporarily hard-coded, should be parsed from args
 NAME=$1
@@ -20,35 +20,37 @@ ARGS=$*
 #CLASS_INSTRUMENTED=examples.fuzzable.$NAME # which class needs to be fuzzed DISC vs FWA
 PATH_SCALA_SRC="src/main/scala/examples/faulty/$NAME.scala"
 PATH_INSTRUMENTED_CLASSES="examples/faulty/$NAME*"
-DIR_CODEPFUZZ_OUT="target/codepfuzz-output/$NAME"
+DIR_FUZZER_OUT="target/depfuzz-output/$NAME"
+JAR_NAME=DepFuzz-assembly-1.0.jar
 
-rm -rf $DIR_CODEPFUZZ_OUT
-mkdir -p graphs $DIR_CODEPFUZZ_OUT/{scoverage-results,report,log,reproducers,crashes} || exit 1
+rm -rf $DIR_FUZZER_OUT
+mkdir -p graphs $DIR_FUZZER_OUT/{scoverage-results,report,log,reproducers,crashes} || exit 1
 
 sbt assembly || exit 1
 
-java -cp  target/scala-2.12/CoDepFuzz-assembly-1.0.jar \
+java -cp  target/scala-2.12/$JAR_NAME \
           utils.ScoverageInstrumenter \
           $PATH_SCALA_SRC \
-          $DIR_CODEPFUZZ_OUT/scoverage-results/referenceProgram \
+          $DIR_FUZZER_OUT/scoverage-results/referenceProgram \
           || exit
 
 pushd target/scala-2.12/classes || exit 1
-jar uvf  ../CoDepFuzz-assembly-1.0.jar \
+jar uvf  ../$JAR_NAME \
         $PATH_INSTRUMENTED_CLASSES \
         || exit 1
 popd || exit 1
 
-java -cp  target/scala-2.12/CoDepFuzz-assembly-1.0.jar \
-          runners.RunCoDepFuzzJar \
+java -cp  target/scala-2.12/$JAR_NAME \
+          runners.RunFuzzerJar \
           $NAME \
           $DURATION \
-          $DIR_CODEPFUZZ_OUT \
-          $ARGS
+          "$(realpath $DIR_FUZZER_OUT)" \
+          $ARGS \
+          || exit 1
 
 
 python3 gen_graph.py \
-        --coords-file $DIR_CODEPFUZZ_OUT/scoverage-results/referenceProgram/coverage.tuples \
+        --coords-file $DIR_FUZZER_OUT/scoverage-results/referenceProgram/coverage.tuples \
         --outfile graphs/graph-$NAME-coverage.png \
         --title " Coverage: $NAME" \
         --x-label "Time (s)" \
