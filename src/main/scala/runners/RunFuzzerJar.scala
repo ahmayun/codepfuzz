@@ -1,8 +1,10 @@
 package runners
 
-import fuzzer.{FuzzStats, Global, InstrumentedProgram, NewFuzzer, Program}
+import fuzzer.{DynLoadedProgram, FuzzStats, Global, InstrumentedProgram, NewFuzzer, Program, ProvInfo}
 import guidance.ProvFuzzGuidance
+import org.apache.spark.{SparkConf, SparkContext}
 import transformers.SparkProgramTransformer
+
 
 object RunCoDepFuzzJar {
 
@@ -34,38 +36,33 @@ object RunCoDepFuzzJar {
 
     transformer
       .changePackageTo(instPackage)
-      .addImports(
-        List(
-          "sparkwrapper.SparkContextWithDP",
-          "taintedprimitives._",
-          "taintedprimitives.SymImplicits._"
-        )
-      )
+      .enableTaintProp()
       .attachMonitors()
       .writeTo(instProgramPath)
 
     transformer
       .changePackageTo(fwaPackage)
       .replaceImports(
-        List(
-          ("org.apache.spark.SparkConf", "abstraction.SparkConf"),
-          ("org.apache.spark.SparkContext", "abstraction.SparkContext")
+        Map(
+          "org.apache.spark.SparkConf" -> "abstraction.SparkConf",
+          "org.apache.spark.SparkContext" -> "abstraction.SparkContext"
         )
       )
       .writeTo(fwaProgramPath)
 
-    sys.exit(0)
+    val sc = new SparkContext(
+      new SparkConf()
+        .setAppName("CoDepFuzz")
+        .setMaster("local[*]")
+    )
 
-
-
-    val instProgram = new InstrumentedProgram(
+    val instProgram = new DynLoadedProgram(
       benchmarkName,
       instProgramClass,
       instProgramPath,
-      x => null,
       inputFiles)
 
-    val codepInfo = instProgram.invokeMain(inputFiles)
+    val codepInfo = instProgram.invokeMain(inputFiles:+"local[*]")
 
     val program = new Program(
       benchmarkName,

@@ -1,0 +1,5 @@
+package testfiles
+
+class MyClass {
+
+}
