@@ -1,6 +1,6 @@
 package runners
 
-import fuzzer.{DynLoadedProgram, FuzzStats, Global, InstrumentedProgram, NewFuzzer, Program, ProvInfo}
+import fuzzer.{DynLoadedProgram, ExecutableProgram, FuzzStats, Global, InstrumentedProgram, NewFuzzer, Program, ProvInfo}
 import guidance.ProvFuzzGuidance
 import org.apache.spark.{SparkConf, SparkContext}
 import transformers.SparkProgramTransformer
@@ -31,24 +31,24 @@ object RunFuzzerJar {
     val fwaPackage = "examples.fwa"
     val fwaProgramClass = s"$fwaPackage.$benchmarkName"
     val fwaProgramPath = s"$outPathFWA/$benchmarkName.scala"
-
-    val transformer = new SparkProgramTransformer(sparkProgramPath)
-
-    transformer
-      .changePackageTo(instPackage)
-      .enableTaintProp()
-      .attachMonitors()
-      .writeTo(instProgramPath)
-
-    transformer
-      .changePackageTo(fwaPackage)
-      .replaceImports(
-        Map(
-          "org.apache.spark.SparkConf" -> "abstraction.SparkConf",
-          "org.apache.spark.SparkContext" -> "abstraction.SparkContext"
-        )
-      )
-      .writeTo(fwaProgramPath)
+//
+//    val transformer = new SparkProgramTransformer(sparkProgramPath)
+//
+//    transformer
+//      .changePackageTo(instPackage)
+//      .enableTaintProp()
+//      .attachMonitors()
+//      .writeTo(instProgramPath)
+//
+//    transformer
+//      .changePackageTo(fwaPackage)
+//      .replaceImports(
+//        Map(
+//          "org.apache.spark.SparkConf" -> "abstraction.SparkConf",
+//          "org.apache.spark.SparkContext" -> "abstraction.SparkContext"
+//        )
+//      )
+//      .writeTo(fwaProgramPath)
 
     val sc = new SparkContext(
       new SparkConf()
@@ -56,29 +56,36 @@ object RunFuzzerJar {
         .setMaster("local[*]")
     )
 
-    val instProgram = new DynLoadedProgram(
+    val instProgram = new DynLoadedProgram[ProvInfo](
       benchmarkName,
       instProgramClass,
       instProgramPath,
-      inputFiles)
+      inputFiles,
+      {
+        case Some(coDepInfo) => coDepInfo.asInstanceOf[ProvInfo]
+        case _ => null
+      }
+    )
 
     val codepInfo = instProgram.invokeMain(inputFiles:+"local[*]")
 
-    val program = new Program(
+    val program = new DynLoadedProgram[Unit](
       benchmarkName,
       fwaProgramClass,
       fwaProgramPath,
-      funFuzzable,
-      inputFiles)
+//      funFuzzable,
+      inputFiles,
+      {case _ => Unit}
+    )
 
     val guidance = new ProvFuzzGuidance(inputFiles, codepInfo, duration.toInt)
-    val (stats, timeStartFuzz, timeEndFuzz) = NewFuzzer.FuzzMutants(program, program, guidance, outDir)
+    val (stats, timeStartFuzz, timeEndFuzz) = NewFuzzer.FuzzMutants(program, program, guidance, outDir, false)
     reportStats(program, stats, timeStartFuzz, timeEndFuzz)
     println("Co-dependence Info: ")
     println(codepInfo)
   }
 
-  def reportStats(program: Program, stats: FuzzStats, timeStartFuzz: Long, timeEndFuzz: Long): Unit = {
+  def reportStats(program: ExecutableProgram, stats: FuzzStats, timeStartFuzz: Long, timeEndFuzz: Long): Unit = {
     val durationProbe = 0.1f // (timeEndProbe - timeStartProbe) / 1000.0
     val durationFuzz = (timeEndFuzz - timeStartFuzz) / 1000.0
     val durationTotal = durationProbe + durationFuzz

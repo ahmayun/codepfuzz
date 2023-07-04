@@ -20,17 +20,20 @@ class Program(val name: String,
   }
 }
 
-class DynLoadedProgram( val name: String,
+class DynLoadedProgram[T]( val name: String,
                         val classname: String,
                         val classpath: String,
-                        val args: Array[String]) extends ExecutableProgram {
+                        val args: Array[String],
+                        val postProcess: Option[Any] => T
+                      ) extends ExecutableProgram {
 
-  def invokeMain(_args: Array[String]): ProvInfo = {
-    val some = utils.reflection.DynamicClassLoader.invokeMethod(classname, "main", _args)
-    println(some)
-    val Some(coDepInfo) = some
-    coDepInfo.asInstanceOf[ProvInfo]
+  def invokeMain(_args: Array[String]): T = {
+    postProcess(utils.reflection.DynamicClassLoader.invokeMethod(classname, "main", _args))
+//    val some = utils.reflection.DynamicClassLoader.invokeMethod(classname, "main", _args)
+//    val Some(coDepInfo) = some
+//    coDepInfo.asInstanceOf[ProvInfo]
   }
+
 }
 
 // Can add this as an overloaded constructor because scala complains
