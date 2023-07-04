@@ -2,8 +2,8 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/.idea/modules/CoDepFuzz.iml" filepath="$PROJECT_DIR$/.idea/modules/CoDepFuzz.iml" />
-      <module fileurl="file://$PROJECT_DIR$/.idea/modules/CoDepFuzz-build.iml" filepath="$PROJECT_DIR$/.idea/modules/CoDepFuzz-build.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/DepFuzz.iml" filepath="$PROJECT_DIR$/.idea/modules/DepFuzz.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/DepFuzz-build.iml" filepath="$PROJECT_DIR$/.idea/modules/DepFuzz-build.iml" />
     </modules>
   </component>
 </project>
