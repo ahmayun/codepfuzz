@@ -5,7 +5,7 @@ import org.apache.spark.{SparkConf, SparkContext}
 object DeliveryFaults {
 
   def main(args: Array[String]) {
-    val conf = new SparkConf()
+    val conf = new SparkConf().setMaster(if(args.length > 1) args(1) else "local[*]")
     conf.setMaster("local[*]")
     conf.setAppName("Delivery Faults")
     val sc = new SparkContext(conf)

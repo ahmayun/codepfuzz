@@ -6,9 +6,8 @@ import taintedprimitives.Utils
 object CommuteType {
 
   def main(args: Array[String]) {
-    val conf = new SparkConf()
-    conf.setMaster("local[*]")
-    conf.setAppName("CommuteTime")
+    val conf = new SparkConf().setMaster(if(args.length > 1) args(1) else "local[*]")
+    conf.setAppName("Commute Type")
 
 
     val sc = new SparkContext(conf)

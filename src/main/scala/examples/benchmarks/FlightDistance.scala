@@ -6,8 +6,7 @@ import org.apache.spark.{SparkConf, SparkContext}
 
     def main(args: Array[String]): Unit = {
       //set up spark configuration
-      val sparkConf = new SparkConf()
-      sparkConf.setMaster("local[6]")
+      val sparkConf = new SparkConf().setMaster(if(args.length > 2) args(2) else "local[*]")
       sparkConf.setAppName("Column Provenance Test").set("spark.executor.memory", "2g")
       val flights_data = "datasets/fuzzing_seeds/FlightDistance/flights" // "/home/ahmad/Documents/VT/project1/cs5614-hw/data/flights"
       val airports_data = "datasets/fuzzing_seeds/FlightDistance/airports_data" // "/home/ahmad/Documents/VT/project1/cs5614-hw/data/airports_data"

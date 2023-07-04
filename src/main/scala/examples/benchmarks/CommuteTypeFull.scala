@@ -5,8 +5,7 @@ import org.apache.spark.{SparkConf, SparkContext}
 object CommuteTypeFull extends Serializable {
 
   def main(args: Array[String]) {
-    val conf = new SparkConf()
-    conf.setMaster("local[*]")
+    val conf = new SparkConf().setMaster(if(args.length > 2) args(2) else "local[*]")
     conf.setAppName("CommuteTime")
     val sc = new SparkContext(conf)
     sc.setLogLevel("ERROR")

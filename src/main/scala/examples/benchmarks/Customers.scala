@@ -6,8 +6,7 @@ object Customers {
 
   def main(args: Array[String]): Unit = {
     //set up spark configuration
-    val sparkConf = new SparkConf()
-    sparkConf.setMaster("local[6]")
+    val sparkConf = new SparkConf().setMaster(if(args.length > 2) args(2) else "local[*]")
     sparkConf.setAppName("Customers Orders").set("spark.executor.memory", "2g")
     val customers_data = args(0)// "datasets/fuzzing_seeds/orders/customers"
     val orders_data = args(1) // "datasets/fuzzing_seeds/orders/orders"

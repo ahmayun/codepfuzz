@@ -6,7 +6,7 @@ object WebpageSegmentation extends Serializable {
 
   def main(args: Array[String]): Unit = {
     println(s"WebpageSegmentation: ${args.mkString("\n")}")
-    val sparkConf = new SparkConf().setMaster(args(2))
+    val sparkConf = new SparkConf().setMaster(if(args.length > 2) args(2) else "local[*]")
     sparkConf.setAppName("TPC-DS Query 6")
     val ctx = SparkContext.getOrCreate(sparkConf)
     ctx.setLogLevel("ERROR")
@@ -38,7 +38,6 @@ object WebpageSegmentation extends Serializable {
     inter.map{
       case (url, ((box1, _, _), lst)) => (url, lst.map{case (box, _, _) => box}.map(intersects(_, box1)))
     }.collect().foreach(println)
-    println("hello world")
     //    val iRects =  pairs.map{ case (id, (rect1, rect2)) => (id, intersects(rect1, rect2))}
     //    iRects.collect().foreach(println)
 //    ctx.stop()
