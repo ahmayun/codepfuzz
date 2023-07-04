@@ -18,13 +18,20 @@ shift 2
 ARGS=$*
 
 #CLASS_INSTRUMENTED=examples.fuzzable.$NAME # which class needs to be fuzzed DISC vs FWA
-PATH_SCALA_SRC="src/main/scala/examples/faulty/$NAME.scala"
-PATH_INSTRUMENTED_CLASSES="examples/faulty/$NAME*"
+PATH_SCALA_SRC="src/main/scala/examples/fwa/$NAME.scala"
+PATH_INSTRUMENTED_CLASSES="examples/fwa/$NAME*"
 DIR_FUZZER_OUT="target/depfuzz-output/$NAME"
 JAR_NAME=DepFuzz-assembly-1.0.jar
 
 rm -rf $DIR_FUZZER_OUT
 mkdir -p graphs $DIR_FUZZER_OUT/{scoverage-results,report,log,reproducers,crashes} || exit 1
+
+sbt assembly || exit 1
+
+java -cp  target/scala-2.12/$JAR_NAME \
+          transformers.RunTransformer \
+          $NAME \
+          || exit
 
 sbt assembly || exit 1
 
@@ -54,4 +61,6 @@ python3 gen_graph.py \
         --outfile graphs/graph-$NAME-coverage.png \
         --title " Coverage: $NAME" \
         --x-label "Time (s)" \
-        --y-label "Statement Coverage (%)"
+        --y-label "Statement Coverage (%)" && echo "Graphs generated!"
+
+rm -rf src/main/scala/examples/{fwa,instrumented}
