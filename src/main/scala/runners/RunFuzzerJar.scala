@@ -1,7 +1,9 @@
 package runners
 
+import fuzzer.NewFuzzer.writeToFile
 import fuzzer.{DynLoadedProgram, ExecutableProgram, FuzzStats, Global, InstrumentedProgram, NewFuzzer, Program, ProvInfo}
 import guidance.ProvFuzzGuidance
+import monitoring.Monitors
 import org.apache.spark.{SparkConf, SparkContext}
 import transformers.SparkProgramTransformer
 
@@ -13,11 +15,14 @@ object RunFuzzerJar {
     val (benchmarkName, duration, outDir, inputFiles) = if (!args.isEmpty) {
       (args(0), args(1), args(2), args.takeRight(args.length-3))
     } else {
-      val name = "WebpageSegmentation"
+//      val name = "WebpageSegmentation"
+//      val Some(files) = Config.mapInputFilesReduced.get(name)
+//      (name, "20", s"target/depfuzz-output/$name", files)
+      val name = "FlightDistance"
       val Some(files) = Config.mapInputFilesReduced.get(name)
       (name, "20", s"target/depfuzz-output/$name", files)
     }
-    val Some(funFuzzable) = Config.mapFunFuzzables.get(benchmarkName)
+//    val Some(funFuzzable) = Config.mapFunFuzzables.get(benchmarkName)
 //    val Some(codepInfo) = Config.provInfos.get(benchmarkName)
     val outPathInstrumented = "src/main/scala/examples/instrumented"
     val outPathFWA = "src/main/scala/examples/fwa"
@@ -67,22 +72,28 @@ object RunFuzzerJar {
       }
     )
 
-    val codepInfo = instProgram.invokeMain(inputFiles:+"local[*]")
+    println("Capturing codependence")
+    val codepInfo = instProgram.invokeMain(inputFiles)
+    println("Done!")
 
     val program = new DynLoadedProgram[Unit](
       benchmarkName,
       fwaProgramClass,
       fwaProgramPath,
-//      funFuzzable,
       inputFiles,
       {case _ => Unit}
     )
+    val minDataPath = s"$outDir/minimized_data"
+    val newInputs = codepInfo.minData.map {case (i, e) => writeToFile(minDataPath, e, i)}.toArray.sorted
 
-    val guidance = new ProvFuzzGuidance(inputFiles, codepInfo, duration.toInt)
+    val guidance = new ProvFuzzGuidance(newInputs, codepInfo.simplify(), duration.toInt)
     val (stats, timeStartFuzz, timeEndFuzz) = NewFuzzer.FuzzMutants(program, program, guidance, outDir, false)
     reportStats(program, stats, timeStartFuzz, timeEndFuzz)
     println("Co-dependence Info: ")
     println(codepInfo)
+    println("====================")
+    println("Simplified")
+    println(codepInfo.simplify())
   }
 
   def reportStats(program: ExecutableProgram, stats: FuzzStats, timeStartFuzz: Long, timeEndFuzz: Long): Unit = {

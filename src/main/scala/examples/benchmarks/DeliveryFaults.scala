@@ -2,7 +2,7 @@ package examples.benchmarks
 
 import org.apache.spark.{SparkConf, SparkContext}
 
-object DeliveryFaults {
+object DeliveryFaults extends Serializable {
 
   def main(args: Array[String]) {
     val conf = new SparkConf().setMaster(if(args.length > 1) args(1) else "local[*]")

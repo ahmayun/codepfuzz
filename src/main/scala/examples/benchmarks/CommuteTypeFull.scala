@@ -6,13 +6,13 @@ object CommuteTypeFull extends Serializable {
 
   def main(args: Array[String]) {
     val conf = new SparkConf().setMaster(if(args.length > 2) args(2) else "local[*]")
-    conf.setAppName("CommuteTime")
-    val sc = new SparkContext(conf)
+    conf.setAppName("CommuteType")
+    val sc = SparkContext.getOrCreate(conf)
     sc.setLogLevel("ERROR")
 
     val trips = sc.textFile(args(0)).map(s => s.split(","))
       .map { cols =>
-          (cols(1), Integer.parseInt(cols(3)) / Integer.parseInt(cols(4)))
+          (cols(1), cols(3).toInt / cols(4).toInt)
         }
     val locations = sc.textFile(args(1)).map(s => s.filter(_ != '\"').split(","))
       .map { cols =>
@@ -24,7 +24,7 @@ object CommuteTypeFull extends Serializable {
       }
 
     val joined = trips.join(locations)
-    joined
+    val mapped = joined
       .map { s =>
         // Checking if speed is < 25mi/hr
         val speed = s._2._1
@@ -36,12 +36,14 @@ object CommuteTypeFull extends Serializable {
           ("onfoot", speed)
         }
       }
-      .reduceByKey {
-        case (a, b) =>
-          a + b
-      }
-      .collect
-      .foreach(println)
+    val rbk = mapped
+      .reduceByKey(add)
+
+    rbk.collect().foreach(println)
+  }
+
+  def add(a: Int, b: Int): Int = {
+    a + b
   }
 
 }

@@ -34,6 +34,16 @@ case class TaintedFloat(override val value: Float, p:Provenance) extends Tainted
 
   }
 
+  def *(x: Double): TaintedFloat = {
+    val d = value * x
+    TaintedFloat(d.toFloat, getProvenance())
+
+  }
+
+  def toFloat: TaintedFloat = {
+    this
+  }
+
   def /(x: Float): TaintedFloat = {
     val d = value / x
     TaintedFloat(d, getProvenance())
@@ -58,6 +68,11 @@ case class TaintedFloat(override val value: Float, p:Provenance) extends Tainted
 
   def /(x: TaintedFloat): TaintedFloat = {
     TaintedFloat(value / x.value, newProvenance(x.getProvenance()))
+  }
+
+  def /(x: Double): TaintedFloat = {
+    // Very bad, should actually implement taintedouble but too lazy
+    TaintedFloat((value / x).toFloat, getProvenance())
   }
   
   // Incomplete comparison operators - see discussion in TaintedDouble on provenance

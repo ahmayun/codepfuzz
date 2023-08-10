@@ -2,12 +2,12 @@ package examples.benchmarks
 
 import org.apache.spark.{SparkConf, SparkContext}
 
-object Delays {
+object Delays extends Serializable {
 
   def main(args: Array[String]) {
     val conf = new SparkConf().setMaster(if(args.length > 2) args(2) else "local[*]")
     conf.setAppName("Bus Delays")
-    val sc = new SparkContext(conf)
+    val sc = SparkContext.getOrCreate(conf)
 
     //<id>,<departure_time>,<advertised_departure>
     val station1 = sc.textFile(args(0))
@@ -30,7 +30,7 @@ object Delays {
       .map((_, 1))
 
     val reduced = filtered
-      .reduceByKey(_+_)
+      .reduceByKey{case (a, b) => a+b}
 
     reduced
       .collect()

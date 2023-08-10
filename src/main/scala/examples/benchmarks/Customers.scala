@@ -2,7 +2,7 @@ package examples.benchmarks
 
 import org.apache.spark.{SparkConf, SparkContext}
 
-object Customers {
+object Customers extends Serializable {
 
   def main(args: Array[String]): Unit = {
     //set up spark configuration
@@ -10,7 +10,7 @@ object Customers {
     sparkConf.setAppName("Customers Orders").set("spark.executor.memory", "2g")
     val customers_data = args(0)// "datasets/fuzzing_seeds/orders/customers"
     val orders_data = args(1) // "datasets/fuzzing_seeds/orders/orders"
-    val ctx = new SparkContext(sparkConf) //set up lineage context and start capture lineage
+    val ctx = SparkContext.getOrCreate(sparkConf) //set up lineage context and start capture lineage
     ctx.setLogLevel("ERROR")
     val customers = ctx.textFile(customers_data).map(_.split(","))
     val orders = ctx.textFile(orders_data).map(_.split(","))
@@ -48,15 +48,11 @@ object Customers {
     val top = thresh.sortBy(_._2, false).take(3)
     if(top.length < 3) {
       println("not enough data")
-      return
     }
-    val rewards = top.map(computeRewards)
-    rewards.foreach(println)
+    else {
+      val rewards = top.map{case (id, num) => (id, 100.0f, s"$id has won ${"$"}100.0f")}
+      rewards.foreach(println)
+    }
 
-  }
-
-  def computeRewards(custInfo: (String, Int)): (String, Float, String) = {
-    val (id, num) = custInfo
-    (id, 100.0f, s"$id has won ${"$"}100.0f")
   }
 }

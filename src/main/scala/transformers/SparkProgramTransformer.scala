@@ -17,12 +17,13 @@ case class SparkProgramTransformer(tree: Tree) extends Transformer {
     java.nio.file.Files.write(path, tree.toString().getBytes())
   }
 
-  // INCOMPLETE
+  // INCOMPLETE:  handle the following case:  import pkg.{Class1, Class2}
+  //              break into import pkg.Class1; import pkg.Class2
   def splitImports(): SparkProgramTransformer = {
     this
   }
 
-  // INCOMPLETE: hardcoded for now
+  // INCOMPLETE: ideally this should be user supplied, but hardcoded for now
   def _replaceImports(toReplace: Map[String, String]): SparkProgramTransformer = {
     SparkProgramTransformer(tree.transform {
       case q"import org.apache.spark.{SparkConf,SparkContext}" => q"import abstraction.{SparkConf,SparkContext}"

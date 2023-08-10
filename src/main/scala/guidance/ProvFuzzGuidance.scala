@@ -1,6 +1,6 @@
 package guidance
 
-import fuzzer.{Global, Guidance, ProvInfo, Schema}
+import fuzzer.{CoDepTuple, Global, Guidance, Operator, ProvInfo, Schema}
 import runners.Config
 import scoverage.Coverage
 import scoverage.Platform.FileWriter
@@ -220,6 +220,27 @@ class ProvFuzzGuidance(val inputFiles: Array[String], val provInfo: ProvInfo, va
     m_row.update(c, applySchemaAwareMutation(if(flipCoin(0.1f,rand)) equalized else m_row(c), schema, rand))
     data.updated(r, m_row.mkString(","))
   }
+
+  def mutator(data: Seq[String], d: Int, c: Int, r: Int, seed: Long, op: Operator): Seq[String] = {
+    val rand = new Random(seed)
+    println("==Debug Print===")
+    println(data.mkString("\n"))
+    println("=====")
+    val m_row = data(r).split(',')
+    val schema = inferType(m_row(c))
+
+    // add support for different kinds of co-dependence here
+    op.symbol match {
+      case "==" =>
+        val equalized = "<testdummy>" //rand.nextString(m_row(c).length) // mostly produces non english characters
+        m_row.update(c, applySchemaAwareMutation(if (flipCoin(0.1f, rand)) equalized else m_row(c), schema, rand))
+        data.updated(r, m_row.mkString(","))
+      case _ =>
+      m_row.update(c, applySchemaAwareMutation(m_row(c), schema, new Random()))
+      data.updated(r, m_row.mkString(","))
+    }
+  }
+
 //
 //
 //  def getSameMutLocs(join_relations: Array[Array[(Int, Array[Int], Array[Int])]], len_datasets: Array[Int]): Array[Array[(Int, Int, Int)]] = {
@@ -250,17 +271,18 @@ class ProvFuzzGuidance(val inputFiles: Array[String], val provInfo: ProvInfo, va
     */
 
     val locs = provInfo.getLocs()
-    val mutations = locs.map{
-      loc =>
+    val mutations = locs.map {
+      case CoDepTuple(op, regions) =>
         val seed = Random.nextLong()
-        loc.map{
-          case (d, c, r) => data: Seq[String] => mutator(data, d, c, r, seed)
+        regions.map(_.getAsTuple).map {
+          case (d, c, r) => data: Seq[String] => mutator(data, d, c, r, seed, op)
         }
     }
 
     val flattened = mutations.flatten
     locs
-      .flatten
+      .flatMap(_._2)
+      .map(r => (r.ds, r.col, r.row))
       .zip(flattened) //pair staged mutations with locations
       .groupBy(_._1._1) // group by dataset
       .map(e => (e._1, e._2.map(_._2))) // (loc, List[(loc,mutator)]) -> (loc, List[mutator])
@@ -282,6 +304,7 @@ class ProvFuzzGuidance(val inputFiles: Array[String], val provInfo: ProvInfo, va
 
   def duplicateRow(datasets: Array[Seq[String]], loc: (Int, Int)): (Array[Seq[String]], (Int, Int)) = {
     val (ds, row) = loc
+    println(s"=> d:$ds r:$row")
     (datasets.updated(ds, datasets(ds) :+ datasets(ds)(row)), (ds, datasets(ds).length))
   }
 
@@ -316,14 +339,15 @@ class ProvFuzzGuidance(val inputFiles: Array[String], val provInfo: ProvInfo, va
           provenanceAwareDupication(accD, accP, provInfoRand, n)
       }
     val mutated = applyCoDependentMutations(duplicated, provInfoDuplicated)
-    applyNormMutations(mutated, provInfoDuplicated.getCoDependentRegions)
+    applyNormMutations(mutated, provInfoDuplicated.getCoDependentRegions.map(_.regions.map(_.getAsTuple)))
   }
 
   def mutate(inputDatasets: Array[Seq[String]]): Array[Seq[String]] = {
     val mutatedDatasets = if(flipCoin(0.0001f))
       BFmutate(inputDatasets)
-    else
+    else {
       applyProvAwareMutation(inputDatasets, provInfo)
+    }
     mutatedDatasets
   }
 

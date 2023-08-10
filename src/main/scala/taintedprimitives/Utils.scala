@@ -82,6 +82,14 @@ object Utils {
     rdd
   }
 
+  def retrieveRowNumbersAndRows(rr: RoaringBitmap, dataset: Int): RDD[(String, Int)] = {
+    val rdd = colProvRDD(dataset)
+      .zipWithIndex
+      .filter { case (s, _) => RoaringBitmap.andCardinality(rr, s._2.asInstanceOf[DualRBProvenance].bitmap) > 0 }
+      .map { case (s, i) => (s._1.map(_.value).mkString(","), i.toInt) }
+    rdd
+  }
+
   def retrieveRowNumbers(prov: DualRBProvenance, dataset: Int): RDD[Int] = {
     retrieveRowNumbers(prov.bitmap, dataset)
   }

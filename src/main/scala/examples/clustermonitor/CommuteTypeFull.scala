@@ -11,7 +11,7 @@ object CommuteTypeFull extends Serializable {
     if (args.length < 3) throw new IllegalArgumentException("Program was called with too few args")
     conf.setMaster(args(2))
     conf.setAppName("CommuteTypeFull Monitored")
-    val sc = new SparkContextWithDP(new SparkContext(conf))
+    val sc = new SparkContextWithDP(SparkContext.getOrCreate(conf))
     sc.setLogLevel("ERROR")
     val trips = sc.textFileProv(args(0), s => s.split(",")).map {
       cols => (cols(1), Integer.parseInt(cols(3)) / Integer.parseInt(cols(4)))

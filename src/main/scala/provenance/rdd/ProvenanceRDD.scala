@@ -3,6 +3,7 @@ package provenance.rdd
 import org.apache.spark.rdd.RDD
 import provenance.data.Provenance
 
+import scala.language.implicitConversions
 import scala.reflect.ClassTag
 
 

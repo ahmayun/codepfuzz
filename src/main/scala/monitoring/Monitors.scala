@@ -1,6 +1,7 @@
 package monitoring
 
-import fuzzer.ProvInfo
+import fuzzer.NewFuzzer.writeToFile
+import fuzzer.{Operator, ProvInfo}
 import org.apache.spark.rdd.RDD
 import provenance.data.{DualRBProvenance, Provenance}
 import provenance.rdd.{PairProvenanceDefaultRDD, PairProvenanceRDD}
@@ -19,22 +20,22 @@ object Monitors extends Serializable {
   val dummyBuffer: ListBuffer[Provenance] = new ListBuffer()
 
 
-  def updateMinData(p: ListBuffer[Provenance]): Unit = {
-    p.foreach { pi =>
-      val bitmap = pi.asInstanceOf[DualRBProvenance].bitmap
-      val datasets = Utils.retrieveColumnsFromBitmap(bitmap)
-        .groupBy(_._1)
-        .keys
-
-      datasets.foreach{ ds =>
-        val rows = Utils.retrieveColProvenance(bitmap, ds).take(5)
-        if(!this.minData.contains(ds)) {
-          this.minData.update(ds, ListBuffer())
-        }
-        this.minData.update(ds, this.minData(ds) ++ rows)
-      }
-    }
-  }
+//  def updateMinData(p: ListBuffer[Provenance]): Unit = {
+//    p.foreach { pi =>
+//      val bitmap = pi.asInstanceOf[DualRBProvenance].bitmap
+//      val datasets = Utils.retrieveColumnsFromBitmap(bitmap)
+//        .groupBy(_._1)
+//        .keys
+//
+//      datasets.foreach{ ds =>
+//        val rows = Utils.retrieveColProvenance(bitmap, ds).take(5)
+//        if(!this.minData.contains(ds)) {
+//          this.minData.update(ds, ListBuffer())
+//        }
+//        this.minData.update(ds, this.minData(ds) ++ rows)
+//      }
+//    }
+//  }
 
   def monitorJoin[K<:TaintedBase:ClassTag,V1,V2](d1: PairProvenanceDefaultRDD[K,V1],
                                                  d2: PairProvenanceDefaultRDD[K,V2],
@@ -66,8 +67,7 @@ object Monitors extends Serializable {
       .take(5)
       .to[ListBuffer]
       .foreach { p =>
-        updateMinData(p)
-        this.provInfo.update(id, p)
+        this.provInfo.update(Operator("=="), id, p)
       }
 //        }
 
@@ -86,7 +86,7 @@ object Monitors extends Serializable {
       prov._1.foreach {
         case v: TaintedBase =>
           dummyBuffer.append(v.getProvenance()) // WARNING: Not cluster safe, temporary
-          this.provInfo.update(id, ListBuffer(v.getProvenance()))
+          this.provInfo.update(Operator("=="), id, ListBuffer(v.getProvenance()))
         case _ =>
       }
     }
@@ -122,8 +122,8 @@ object Monitors extends Serializable {
       .take(5)
       .to[ListBuffer]
       .foreach { p =>
-        updateMinData(p)
-        this.provInfo.update(id, p)
+//        updateMinData(p)
+        this.provInfo.update(Operator("=="), id, p)
       }
 
     println("GBK Prov")
@@ -148,8 +148,8 @@ object Monitors extends Serializable {
       .take(5)
       .to[ListBuffer]
       .foreach { p =>
-        this.provInfo.update(id, p)
-        updateMinData(p)
+        this.provInfo.update(Operator("=="), id, p)
+//        updateMinData(p)
       }
 
     println("RBK Prov")
@@ -159,19 +159,24 @@ object Monitors extends Serializable {
   }
 
   def monitorFilter[T](rdd: RDD[T], f: T => Boolean): RDD[T] = {
-    rdd
+    rdd.filter(f)
   }
 
   // called at the end of main function
   def finalizeProvenance(): ProvInfo = {
-    val x = provInfo.simplify()
+    println("ORIGINAL")
+    println(provInfo)
+    val x = provInfo//.simplify()
+    println("SIMPLIFIED")
     println(x)
+//    sys.exit(0)
     println("min-data")
-    this.minData.foreach {
+    provInfo.minData.foreach {
       case (ds, data) =>
         println(s"=== DS:$ds ====")
         println(data.mkString("\n"))
     }
+
     x
   }
 
