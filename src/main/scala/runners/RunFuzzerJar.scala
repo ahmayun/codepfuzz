@@ -61,6 +61,8 @@ object RunFuzzerJar {
         .setMaster("local[*]")
     )
 
+    sc.setLogLevel("ERROR")
+
     val instProgram = new DynLoadedProgram[ProvInfo](
       benchmarkName,
       instProgramClass,
@@ -81,19 +83,19 @@ object RunFuzzerJar {
       fwaProgramClass,
       fwaProgramPath,
       inputFiles,
-      {case _ => Unit}
+      _ => Unit
     )
     val minDataPath = s"$outDir/minimized_data"
     val newInputs = codepInfo.minData.map {case (i, e) => writeToFile(minDataPath, e, i)}.toArray.sorted
 
     val guidance = new ProvFuzzGuidance(newInputs, codepInfo.simplify(), duration.toInt)
-    val (stats, timeStartFuzz, timeEndFuzz) = NewFuzzer.FuzzMutants(program, program, guidance, outDir, false)
+    val (stats, timeStartFuzz, timeEndFuzz) = NewFuzzer.FuzzMutants(program, program, guidance, outDir, compile = false)
     reportStats(program, stats, timeStartFuzz, timeEndFuzz)
-    println("Co-dependence Info: ")
-    println(codepInfo)
-    println("====================")
-    println("Simplified")
-    println(codepInfo.simplify())
+//    println("Co-dependence Info: ")
+//    println(codepInfo)
+//    println("====================")
+//    println("Simplified")
+//    println(codepInfo.simplify())
   }
 
   def reportStats(program: ExecutableProgram, stats: FuzzStats, timeStartFuzz: Long, timeEndFuzz: Long): Unit = {

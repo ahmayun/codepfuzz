@@ -20,7 +20,7 @@ object StudentGrade extends Serializable {
     }
       .map{case (a, b) => (a, b.asInstanceOf[Any])}
 
-    _root_.monitoring.Monitors.monitorReduceByKey(rdd, sum, 1)
+    _root_.monitoring.Monitors.monitorReduceByKey(rdd)(sum, 1)
       .take(100)
       .foreach(println)
 

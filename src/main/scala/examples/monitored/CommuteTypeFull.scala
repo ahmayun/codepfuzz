@@ -33,7 +33,7 @@ object CommuteTypeFull extends Serializable {
       }
     }
 
-    _root_.monitoring.Monitors.monitorReduceByKey(types, sum, 2).collect.foreach(println)
+    _root_.monitoring.Monitors.monitorReduceByKey(types)(sum, 2).collect.foreach(println)
     _root_.monitoring.Monitors.finalizeProvenance()
   }
 

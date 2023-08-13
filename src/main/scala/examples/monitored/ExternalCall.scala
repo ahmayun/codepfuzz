@@ -15,7 +15,7 @@ object ExternalCall {
     val rdd = sc.textFileProv(args(0), _.split("\\s")).flatMap(s => s).map { s =>
       (s, 1)
     }
-    _root_.monitoring.Monitors.monitorReduceByKey(rdd, sum, 1).filter { v =>
+    _root_.monitoring.Monitors.monitorReduceByKey(rdd)(sum, 1).filter { v =>
       val v1 = log10(v._2)
       v1 > 1
     }.collect().foreach(println)

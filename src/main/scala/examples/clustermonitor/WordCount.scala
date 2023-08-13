@@ -16,7 +16,7 @@ object WordCount extends Serializable {
 //    ctx.setLogLevel("ERROR")
     _root_.monitoring.Monitors.monitorReduceByKey(ctx.textFileProv(args(0), _.split("\\s"))
       .flatMap(s => s)
-      .map { s => (s, 1) }, sumFunc, 1)
+      .map { s => (s, 1) })(sumFunc, 1)
       .take(10)
       .foreach(println)
 

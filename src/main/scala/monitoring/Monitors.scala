@@ -133,7 +133,7 @@ object Monitors extends Serializable {
   }
 
   def monitorReduceByKey[K, V](
-                                dataset: PairProvenanceDefaultRDD[K, V],
+                                dataset: PairProvenanceDefaultRDD[K, V])(
                                 func: (V, V) => V, id: Int)
   : PairProvenanceRDD[K, V] = {
 

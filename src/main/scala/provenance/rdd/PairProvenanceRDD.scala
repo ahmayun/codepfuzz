@@ -52,6 +52,15 @@ trait PairProvenanceRDD[K, V] extends ProvenanceRDD[(K, V)] {
                              enableUDFAwareProv = enableUDFAwareProv)(vct)
   }
 
+  def monitoredReduceByKey(
+                   func: (V, V) => V,
+                   enableUDFAwareProv: Option[Boolean] = None): PairProvenanceRDD[K, V] = {
+    combineByKeyWithClassTag(identity,
+      func,
+      func,
+      enableUDFAwareProv = enableUDFAwareProv)(vct)
+  }
+
   /** If Influence function is given then the UDFAwareProvenance is un-applicable */
   def reduceByKeyOld(
       func: (V, V) => V,

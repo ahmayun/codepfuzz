@@ -4,11 +4,11 @@ import org.apache.spark.{SparkConf, SparkContext}
 
 object DeliveryFaults extends Serializable {
 
-  def main(args: Array[String]) {
+  def main(args: Array[String]): Unit = {
     val conf = new SparkConf().setMaster(if(args.length > 1) args(1) else "local[*]")
     conf.setMaster("local[*]")
     conf.setAppName("Delivery Faults")
-    val sc = new SparkContext(conf)
+    val sc = SparkContext.getOrCreate(conf)
 
     //<delivery_id>,<customer_id>,<vendor>,<rating>
     val deliveries = sc.textFile(args(0))
@@ -20,10 +20,15 @@ object DeliveryFaults extends Serializable {
     val triplets = same_deliveries.filter(_._2.size > 2)
     val bad_triplets = triplets.filter(tup => tripletRating(tup) < 2.0f)
     bad_triplets
-      .map(processTriplets)
+      .map {
+        case (_, iter) =>
+          iter.foldLeft("")({
+            case (acc, (_, vendor, _)) =>
+              s"$acc,$vendor"
+          })
+      }
       .collect()
       .foreach(println)
-
   }
 
   def tripletRating(tup: (String, Iterable[(String, String, Float)])): Float = {
@@ -31,8 +36,4 @@ object DeliveryFaults extends Serializable {
     iter.foldLeft(0.0f){case (acc, (_, _, rating)) => rating + acc}/iter.size
   }
 
-  def processTriplets(tup: (String, Iterable[(String, String, Float)])): String = {
-    val (_, iter) = tup
-    iter.foldLeft(""){case (acc,(_, vendor,_)) => s"$acc,$vendor"}
-  }
 }
