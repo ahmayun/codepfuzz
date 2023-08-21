@@ -1,5 +1,10 @@
 package fuzzer
 
+import org.apache.spark.util.CollectionAccumulator
+import provenance.data.Provenance
+
+import scala.collection.mutable.ListBuffer
+
 
 trait ExecutableProgram {
   def invokeMain(args: Array[String]): Any
@@ -24,11 +29,18 @@ class DynLoadedProgram[T]( val name: String,
                         val classname: String,
                         val classpath: String,
                         val args: Array[String],
+                        val acc: CollectionAccumulator[(String, ListBuffer[Provenance], Int)],
                         val postProcess: Option[Any] => T
                       ) extends ExecutableProgram {
 
   def invokeMain(_args: Array[String]): T = {
-    postProcess(utils.reflection.DynamicClassLoader.invokeMethod(classname, "main", _args))
+    val call = if (acc != null)
+      utils.reflection.DynamicClassLoader.invokeMethod(classname, "main", _args, acc)
+    else
+      utils.reflection.DynamicClassLoader.invokeMethod(classname, "main", _args)
+
+    postProcess(call)
+//    postProcess(utils.reflection.DynamicClassLoader.invokeMethod(classname, "main", _args))
 //    val some = utils.reflection.DynamicClassLoader.invokeMethod(classname, "main", _args)
 //    val Some(coDepInfo) = some
 //    coDepInfo.asInstanceOf[ProvInfo]

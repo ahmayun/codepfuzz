@@ -37,7 +37,7 @@ class ProvInfo(val depsInfo: ListBuffer[CoDepTuple], val fullToMinRowMap: mutabl
 //    depsInfo.append(provenances.flatMap(_.convertToTuples))
 //  }
 
-  def update(op: Operator, id: Int, provenances: ListBuffer[Provenance]): Unit = {
+  def update(op: Operator, provenances: ListBuffer[Provenance], id: Int): Unit = {
     val newRegions = updateMinData(provenances)
     depsInfo.append(CoDepTuple(op,  newRegions))
   }

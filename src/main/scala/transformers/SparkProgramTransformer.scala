@@ -58,7 +58,9 @@ case class SparkProgramTransformer(tree: Tree) extends Transformer {
       case Constants.KEY_JOIN => s"${Constants.MAP_TRANSFORMS(Constants.KEY_JOIN)}($rddName, ${args.mkString(",")}, 0)".parse[Term].get
       case Constants.KEY_GBK => s"${Constants.MAP_TRANSFORMS(Constants.KEY_GBK)}($rddName, 0)".parse[Term].get
       case Constants.KEY_RBK => s"${Constants.MAP_TRANSFORMS(Constants.KEY_RBK)}($rddName)(${args.mkString(",")}, 0)".parse[Term].get
-      //      case Constants.KEY_FILTER => s"${Constants.MAP_TRANSFORMS(Constants.KEY_FILTER)}($rddName, ${args.mkString(",")}, $id)".parse[Term].get
+//      case Constants.KEY_FILTER =>
+//        val modifiedUDF = args.updated(0, attachPredicateMonitor(args.head))
+//        Term.Apply(Term.Select(rddName, Term.Name(dfoName)), modifiedUDF)
       case _ => dfo
     }
   }
@@ -104,6 +106,21 @@ case class SparkProgramTransformer(tree: Tree) extends Transformer {
     SparkProgramTransformer(custom(tree))
   }
 
+  def addFunctionArg(funcName: String, nameType: (String, String)): SparkProgramTransformer = {
+    val (sNewName, sNewType) = nameType
+    val custom = new Transformer {
+      override def apply(t: Tree): Tree = t match {
+        case Defn.Def(fmods, fname@Term.Name(`funcName`), ftparams, fparamss, fdecltpe, fbody) =>
+          val newParam = Term.Param(List[Mod](), Term.Name(sNewName), Some(sNewType.parse[Type].get), None)
+          val modifiedParams = fparamss.updated(0, fparamss.head :+ newParam)
+          Defn.Def(fmods, fname, ftparams, modifiedParams, fdecltpe, fbody)
+        case node@_ =>
+          super.apply(node)
+      }
+    }
+    SparkProgramTransformer(custom(tree))
+  }
+
   def enableTaintProp(): SparkProgramTransformer = {
     val custom = new Transformer {
       override def apply(t: Tree): Tree = t match {
@@ -122,16 +139,79 @@ case class SparkProgramTransformer(tree: Tree) extends Transformer {
 
     SparkProgramTransformer(custom(tree))
       .modifyFunctionArgs("main", 0, (null, "Array[String]"))
+      .addFunctionArg("main", ("accTuples", "CollectionAccumulator[(String, ListBuffer[Provenance], Int)]"))
       .modifyFunctionReturnType("main", "ProvInfo")
       .addImports(
         List(
           "sparkwrapper.SparkContextWithDP",
           "taintedprimitives._",
-          "taintedprimitives.SymImplicits._"
+          "taintedprimitives.SymImplicits._",
+          "org.apache.spark.util.CollectionAccumulator",
+          "provenance.rdd.ProvenanceRDD.toPairRDD",
+          "provenance.data.Provenance",
+          "scala.collection.mutable.ListBuffer"
         )
       )
   }
 
+  def attachPredicateMonitorToStatement(stat: Stat): Stat = {
+    stat match {
+      case infix: Term.ApplyInfix =>
+        s"${Constants.MAP_TRANSFORMS(Constants.KEY_PREDICATE)}($infix, (List(), List()), 0, accTuples)".parse[Stat].get
+      case _ =>
+        stat
+    }
+  }
+
+  def attachPredicateMonitorAtEnd(body: Term): Term = {
+    body match {
+      case Term.Block(statements) =>
+        Term.Block(statements.updated(statements.length - 1, attachPredicateMonitorToStatement(statements.last)))
+      case stat: Stat =>
+        Term.Block(List(attachPredicateMonitorToStatement(stat)))
+    }
+  }
+
+  def attachPredicateMonitor(udf: Term): Term = {
+    udf match {
+      case Term.PartialFunction(cases) =>
+        Term.PartialFunction(cases.map {
+          case Case(pat, cond, body) => Case(pat, cond, attachPredicateMonitorAtEnd(body))
+        })
+      case stat: Stat =>
+        println(stat)
+        attachPredicateMonitorAtEnd(stat)
+    }
+  }
+
+  def attachInfixMonitor(infix: Term.ApplyInfix): Stat = {
+    val Term.ApplyInfix(lhs, Term.Name(op), _, args) = infix
+    println(op)
+    val monitorName = op match {
+//      case "==" =>
+//        "monitorEq"
+//      case "!=" =>
+//        "monitorNeq"
+      case ">=" =>
+        "monitorGte"
+//      case "<=" =>
+//        "monitorLte"
+//      case "<" =>
+//        "monitorLt"
+//      case ">" =>
+//        "monitorGt"
+      case _ =>
+        null
+    }
+
+    if(monitorName != null) {
+      s"${Constants.MONITOR_CLASS}.$monitorName($infix, (List($lhs), List(${args.head})), 0, accTuples)".parse[Stat].get
+    } else {
+      infix
+    }
+  }
+
+  var inMain = false
   def attachMonitors(): SparkProgramTransformer = {
 
     val custom = new Transformer {
@@ -140,9 +220,22 @@ case class SparkProgramTransformer(tree: Tree) extends Transformer {
           val term = attachDFOMonitor(node)
           super.apply(term)
         case node@Defn.Def(_, Term.Name("main"), _, _, _, _) =>
-          super.apply(insertAtEndOfFunction(node, Constants.CONSOLIDATOR.parse[Stat].get))
+          inMain = true
+          val inst = super.apply(insertAtEndOfFunction(node, Constants.CONSOLIDATOR.parse[Stat].get))
+          inMain = false
+          inst
+        case node@Term.ApplyInfix(lhs, op, targs, args) =>
+          if(inMain) {
+            val recurLhs = apply(lhs).asInstanceOf[Term]
+            val recurRhs = args.map(t => apply(t).asInstanceOf[Term])
+            val recurInfix = Term.ApplyInfix(recurLhs, op, targs, recurRhs)
+            attachInfixMonitor(recurInfix)
+          } else {
+            node
+          }
+
 //      case Term.If(predicate, ifBody, elseBody) =>
-//        val term = attachPredicateMonitor(predicate, id);
+//        val term = attachPredicateMonitor(predicate);
 //        super.apply(Term.If(term, ifBody, elseBody))
         case node@_ =>
           super.apply(node)

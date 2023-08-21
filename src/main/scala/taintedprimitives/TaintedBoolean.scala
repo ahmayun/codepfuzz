@@ -5,7 +5,6 @@ package taintedprimitives
   */
 
 import provenance.data.{DummyProvenance, Provenance}
-import symbolicexecution.{SymbolicExpression, SymbolicTree}
 
 import scala.reflect.runtime.universe._
 

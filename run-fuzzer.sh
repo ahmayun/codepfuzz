@@ -63,4 +63,4 @@ python3 gen_graph.py \
         --x-label "Time (s)" \
         --y-label "Statement Coverage (%)" && echo "Graphs generated!"
 
-rm -rf src/main/scala/examples/{fwa,instrumented}
+#rm -rf src/main/scala/examples/{fwa,instrumented}

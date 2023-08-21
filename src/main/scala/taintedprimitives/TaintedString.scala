@@ -1,8 +1,6 @@
 package taintedprimitives
 
 import provenance.data.{DualRBProvenance, Provenance}
-import symbolicexecution.{SymbolicInteger, SymbolicTree}
-
 import scala.reflect.runtime.universe._
 
 /**

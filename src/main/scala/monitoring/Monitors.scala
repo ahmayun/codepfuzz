@@ -3,18 +3,20 @@ package monitoring
 import fuzzer.NewFuzzer.writeToFile
 import fuzzer.{Operator, ProvInfo}
 import org.apache.spark.rdd.RDD
+import org.apache.spark.util.CollectionAccumulator
 import provenance.data.{DualRBProvenance, Provenance}
 import provenance.rdd.{PairProvenanceDefaultRDD, PairProvenanceRDD}
 import runners.Config
 import taintedprimitives.{TaintedBase, Utils}
 
+import scala.collection.JavaConverters.asScalaBufferConverter
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 import scala.reflect.ClassTag
 
 object Monitors extends Serializable {
 
-
+  val cache: mutable.Map[Int, Boolean] = mutable.HashMap()
   val provInfo: ProvInfo = new ProvInfo()
   val minData: mutable.Map[Int, ListBuffer[String]] = new mutable.HashMap()
   val dummyBuffer: ListBuffer[Provenance] = new ListBuffer()
@@ -67,7 +69,7 @@ object Monitors extends Serializable {
       .take(5)
       .to[ListBuffer]
       .foreach { p =>
-        this.provInfo.update(Operator("=="), id, p)
+        this.provInfo.update(Operator("=="), p, id)
       }
 //        }
 
@@ -86,7 +88,7 @@ object Monitors extends Serializable {
       prov._1.foreach {
         case v: TaintedBase =>
           dummyBuffer.append(v.getProvenance()) // WARNING: Not cluster safe, temporary
-          this.provInfo.update(Operator("=="), id, ListBuffer(v.getProvenance()))
+          this.provInfo.update(Operator("=="), ListBuffer(v.getProvenance()), id)
         case _ =>
       }
     }
@@ -95,6 +97,30 @@ object Monitors extends Serializable {
 
     bool
   }
+
+  def monitorGte(bool: Boolean,
+                            prov: (List[Any], List[Any]),
+                            id: Int,
+                            tupleAcc: CollectionAccumulator[(String, ListBuffer[Provenance], Int)]): Boolean = {
+
+    if (!cache.contains(id)) {
+      if (tupleAcc != null) {
+        if (bool) {
+          (prov._1.head, prov._2.head) match {
+            case (lhs: TaintedBase, rhs: TaintedBase) => tupleAcc.add((">=", ListBuffer(lhs.getProvenance(), rhs.getProvenance()), id))
+            case (lhs: TaintedBase, _) => tupleAcc.add((">=", ListBuffer(lhs.getProvenance()), id))
+            case _ =>
+          }
+        }
+      }
+      cache(id) = true
+    }
+
+    bool
+  }
+
+
+
 
   //  def monitorPredicate(bool: TaintedBoolean, prov: (List[Any], List[Any]), id: Int, currentPathConstraint: SymbolicExpression = SymbolicExpression(new SymbolicTree())): Boolean = {
   //    if (bool) {
@@ -123,7 +149,7 @@ object Monitors extends Serializable {
       .to[ListBuffer]
       .foreach { p =>
 //        updateMinData(p)
-        this.provInfo.update(Operator("=="), id, p)
+        this.provInfo.update(Operator("=="), p, id)
       }
 
     println("GBK Prov")
@@ -148,7 +174,7 @@ object Monitors extends Serializable {
       .take(5)
       .to[ListBuffer]
       .foreach { p =>
-        this.provInfo.update(Operator("=="), id, p)
+        this.provInfo.update(Operator("=="), p, id)
 //        updateMinData(p)
       }
 
@@ -163,21 +189,23 @@ object Monitors extends Serializable {
   }
 
   // called at the end of main function
-  def finalizeProvenance(): ProvInfo = {
+  def finalizeProvenance(tupleAcc: CollectionAccumulator[(String, ListBuffer[Provenance], Int)]): ProvInfo = {
     println("ORIGINAL")
     println(provInfo)
-    val x = provInfo//.simplify()
-    println("SIMPLIFIED")
-    println(x)
-//    sys.exit(0)
-    println("min-data")
-    provInfo.minData.foreach {
-      case (ds, data) =>
-        println(s"=== DS:$ds ====")
-        println(data.mkString("\n"))
+    val infixops = tupleAcc.value.asScala.toList
+    infixops.foreach {
+      case (op, prov, id) =>
+        print("ADDING INFIX: ")
+        println(op, prov, id)
+        provInfo.update(Operator(op), prov, id)
     }
+    provInfo
+  }
 
-    x
+
+  def finalizeProvenance(): ProvInfo = {
+    println("WARNING: USING DEPRECATED PROVENANCE CONSOLIDATOR")
+    provInfo
   }
 
 }

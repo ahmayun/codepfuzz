@@ -5,7 +5,7 @@ import org.apache.spark.{SparkConf, SparkContext}
 object AgeAnalysis extends Serializable {
   def main(args: Array[String]): Unit = {
     val conf = new SparkConf()
-    if (args.length < 2) throw new IllegalArgumentException("Program was called with too few args")
+    if (args.length < 1) throw new IllegalArgumentException("Program was called with too few args")
     //    conf.setMaster(args(1))
     conf.setAppName("AgeAnalysis")
     val sc = SparkContext.getOrCreate(conf)

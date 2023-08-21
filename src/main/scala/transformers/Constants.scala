@@ -4,7 +4,7 @@ object Constants extends Enumeration {
 
   val MONITOR_CLASS = "_root_.monitoring.Monitors"
 
-  val CONSOLIDATOR = s"$MONITOR_CLASS.finalizeProvenance()"
+  val CONSOLIDATOR = s"$MONITOR_CLASS.finalizeProvenance(accTuples)"
   val KEY_FILTER = "filter"
   val KEY_JOIN = "join"
   val KEY_GBK = "groupByKey"

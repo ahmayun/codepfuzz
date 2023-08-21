@@ -5,8 +5,6 @@ package taintedprimitives
   */
 
 import provenance.data.{DummyProvenance, Provenance}
-import symbolicexecution.{SymbolicExpression, SymbolicInteger, SymbolicTree}
-
 import scala.reflect.runtime.universe._
 
 case class TaintedInt(override val value: Int, p : Provenance) extends TaintedAny(value, p) {

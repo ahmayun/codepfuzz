@@ -5,7 +5,10 @@ import fuzzer.{DynLoadedProgram, ExecutableProgram, FuzzStats, Global, Instrumen
 import guidance.ProvFuzzGuidance
 import monitoring.Monitors
 import org.apache.spark.{SparkConf, SparkContext}
+import provenance.data.Provenance
 import transformers.SparkProgramTransformer
+
+import scala.collection.mutable.ListBuffer
 
 
 object RunFuzzerJar {
@@ -63,11 +66,14 @@ object RunFuzzerJar {
 
     sc.setLogLevel("ERROR")
 
+    val accTuples = sc.collectionAccumulator[(String, ListBuffer[Provenance], Int)]("Tuple Accumulator")
+
     val instProgram = new DynLoadedProgram[ProvInfo](
       benchmarkName,
       instProgramClass,
       instProgramPath,
       inputFiles,
+      accTuples,
       {
         case Some(coDepInfo) => coDepInfo.asInstanceOf[ProvInfo]
         case _ => null
@@ -83,6 +89,7 @@ object RunFuzzerJar {
       fwaProgramClass,
       fwaProgramPath,
       inputFiles,
+      null,
       _ => Unit
     )
     val minDataPath = s"$outDir/minimized_data"
@@ -91,11 +98,11 @@ object RunFuzzerJar {
     val guidance = new ProvFuzzGuidance(newInputs, codepInfo.simplify(), duration.toInt)
     val (stats, timeStartFuzz, timeEndFuzz) = NewFuzzer.FuzzMutants(program, program, guidance, outDir, compile = false)
     reportStats(program, stats, timeStartFuzz, timeEndFuzz)
-//    println("Co-dependence Info: ")
-//    println(codepInfo)
-//    println("====================")
-//    println("Simplified")
-//    println(codepInfo.simplify())
+    println("Co-dependence Info: ")
+    println(codepInfo)
+    println("====================")
+    println("Simplified")
+    println(codepInfo.simplify())
   }
 
   def reportStats(program: ExecutableProgram, stats: FuzzStats, timeStartFuzz: Long, timeEndFuzz: Long): Unit = {
